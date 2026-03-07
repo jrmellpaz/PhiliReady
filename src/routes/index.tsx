@@ -4,10 +4,7 @@ import { MapWrapper } from '../components/map/MapWrapper'
 import { DetailPanel } from '../components/map/DetailPanel'
 import { WeatherStrip } from '../components/weather/WeatherStrip'
 import { useSheetState } from '#/lib/sheet-state'
-import {
-  DialogSheet,
-  ScrollableSheet,
-} from '#/components/ui/SilkSheets'
+import { DialogSheet, ScrollableSheet } from '#/components/ui/SilkSheets'
 import { SimulateContent } from '#/components/simulator/SimulateContent'
 import { SimulatorContent } from '#/components/simulator/SimulatorContent'
 import { LoginContent } from '#/components/auth/LoginContent'

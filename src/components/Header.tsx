@@ -57,7 +57,10 @@ export default function Navbar() {
         <div
           className={`navbar-links ${mobileOpen ? 'navbar-links-open' : ''}`}
         >
-          <button className="navbar-link navbar-link-simulate" onClick={() => openSheet('simulate')}>
+          <button
+            className="navbar-link navbar-link-simulate"
+            onClick={() => openSheet('simulate')}
+          >
             <FlaskConical size={14} />
             Simulate
           </button>

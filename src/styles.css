@@ -1135,7 +1135,14 @@ body {
   width: 100%;
   height: 8px;
   border-radius: 4px;
-  background: linear-gradient(to right, #0EA47A, #2B7DE9 25%, #C08B00 50%, #D48B0A 75%, #D03050);
+  background: linear-gradient(
+    to right,
+    #0ea47a,
+    #2b7de9 25%,
+    #c08b00 50%,
+    #d48b0a 75%,
+    #d03050
+  );
 }
 
 .legend-ticks {

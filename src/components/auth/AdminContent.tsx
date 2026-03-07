@@ -34,18 +34,20 @@ function useCityOptions() {
     if (cityListCache) return
     fetch('/geo/municities.json')
       .then((r) => r.json())
-      .then((geo: { features: Array<{ properties: Record<string, string> }> }) => {
-        const list = geo.features
-          .map((f) => ({
-            pcode: f.properties.ADM3_PCODE ?? f.properties.adm3_psgc ?? '',
-            name: f.properties.ADM3_EN ?? '',
-            province: f.properties.ADM2_EN ?? '',
-          }))
-          .filter((c) => c.pcode && c.name)
-          .sort((a, b) => a.name.localeCompare(b.name))
-        cityListCache = list
-        setCities(list)
-      })
+      .then(
+        (geo: { features: Array<{ properties: Record<string, string> }> }) => {
+          const list = geo.features
+            .map((f) => ({
+              pcode: f.properties.ADM3_PCODE ?? f.properties.adm3_psgc ?? '',
+              name: f.properties.ADM3_EN ?? '',
+              province: f.properties.ADM2_EN ?? '',
+            }))
+            .filter((c) => c.pcode && c.name)
+            .sort((a, b) => a.name.localeCompare(b.name))
+          cityListCache = list
+          setCities(list)
+        },
+      )
       .catch(console.error)
   }, [])
 
@@ -198,17 +200,22 @@ function CityCell({ user }: { user: UserWithCities }) {
   const filtered = useMemo(() => {
     if (!search) return allCities.slice(0, 50)
     const q = search.toLowerCase()
-    return allCities.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.province.toLowerCase().includes(q) ||
-        c.pcode.toLowerCase().includes(q),
-    ).slice(0, 50)
+    return allCities
+      .filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          c.province.toLowerCase().includes(q) ||
+          c.pcode.toLowerCase().includes(q),
+      )
+      .slice(0, 50)
   }, [allCities, search])
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(e.target as Node)
+      ) {
         setDropdownOpen(false)
       }
     }
@@ -259,10 +266,13 @@ function CityCell({ user }: { user: UserWithCities }) {
             onClick={() => setDropdownOpen(!dropdownOpen)}
           >
             {selected.length === 0 ? (
-              <span className="city-multiselect-placeholder">Select cities…</span>
+              <span className="city-multiselect-placeholder">
+                Select cities…
+              </span>
             ) : (
               <span className="city-multiselect-count">
-                {selected.length} {selected.length === 1 ? 'city' : 'cities'} selected
+                {selected.length} {selected.length === 1 ? 'city' : 'cities'}{' '}
+                selected
               </span>
             )}
             <ChevronDown size={14} />
@@ -288,15 +298,21 @@ function CityCell({ user }: { user: UserWithCities }) {
                       key={c.pcode}
                       type="button"
                       className={`city-multiselect-item ${
-                        selected.includes(c.pcode) ? 'city-multiselect-item--selected' : ''
+                        selected.includes(c.pcode)
+                          ? 'city-multiselect-item--selected'
+                          : ''
                       }`}
                       onClick={() => toggleCity(c.pcode)}
                     >
                       <span className="city-multiselect-item-check">
                         {selected.includes(c.pcode) && <Check size={12} />}
                       </span>
-                      <span className="city-multiselect-item-name">{c.name}</span>
-                      <span className="city-multiselect-item-province">{c.province}</span>
+                      <span className="city-multiselect-item-name">
+                        {c.name}
+                      </span>
+                      <span className="city-multiselect-item-province">
+                        {c.province}
+                      </span>
                     </button>
                   ))
                 )}
