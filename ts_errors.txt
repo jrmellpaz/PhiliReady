@@ -1,0 +1,7 @@
+src/components/Header.tsx(3,23): error TS2307: Cannot find module '#/lib/queries' or its corresponding type declarations.
+src/components/Header.tsx(4,38): error TS2307: Cannot find module '#/lib/auth' or its corresponding type declarations.
+src/components/Header.tsx(7,3): error TS6133: 'Zap' is declared but its value is never read.
+src/components/map/PhiliMap.tsx(6,32): error TS2307: Cannot find module '#/lib/colors' or its corresponding type declarations.
+src/components/map/PhiliMap.tsx(7,34): error TS2307: Cannot find module '#/lib/queries' or its corresponding type declarations.
+src/components/map/PhiliMap.tsx(8,33): error TS2307: Cannot find module '#/lib/types' or its corresponding type declarations.
+src/components/map/PhiliMap.tsx(9,8): error TS2307: Cannot find module '#/lib/leaflet-fix' or its corresponding type declarations.
