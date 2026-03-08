@@ -80,13 +80,6 @@ function Dashboard() {
           <div className="map-overlay map-legend">
             <div className="legend-label">Demand Level</div>
             <div className="legend-bar" />
-            <div className="legend-ticks">
-              <span>Minimal</span>
-              <span>Low</span>
-              <span>Moderate</span>
-              <span>High</span>
-              <span>Critical</span>
-            </div>
           </div>
           <SimulateContent onActivate={handleSimActivate} />
           {simActive && (
@@ -102,13 +95,6 @@ function Dashboard() {
         <div className="map-overlay map-overlay-topleft map-legend map-legend-mobile">
           <div className="legend-label">Demand Level</div>
           <div className="legend-bar" />
-          <div className="legend-ticks">
-            <span>Minimal</span>
-            <span>Low</span>
-            <span>Moderate</span>
-            <span>High</span>
-            <span>Critical</span>
-          </div>
           {simActive && (
             <span className="topbar-sim-badge">
               🔴 SIM: {simHazard?.toUpperCase()} · Severity {simSeverity}

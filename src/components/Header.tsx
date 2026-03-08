@@ -11,10 +11,10 @@ import {
   LogIn,
   LogOut,
   Menu,
-  X,
   Sliders,
   User,
 } from 'lucide-react'
+import { BottomSheet } from '#/components/ui/SilkSheets'
 
 export default function Navbar() {
   const token = getToken()
@@ -26,11 +26,6 @@ export default function Navbar() {
   const handleLogout = () => {
     clearToken()
     window.location.reload()
-  }
-
-  const openSheet = (name: SheetName) => {
-    setMobileOpen(false)
-    open(name)
   }
 
   return (
@@ -45,110 +40,125 @@ export default function Navbar() {
           <span className="navbar-badge">BETA</span>
         </div>
 
+        {/* Desktop Links */}
+        <div className="navbar-links-desktop">
+          <NavLinks
+            user={user}
+            token={!!token}
+            onLogout={handleLogout}
+            onOpenSheet={open}
+            onNavigate={(modal) =>
+              navigate({
+                to: '/',
+                search: (prev) => ({ ...prev, modal }),
+                mask: { to: `/${modal}` },
+              })
+            }
+          />
+        </div>
+
         {/* Mobile toggle */}
         <button
           className="navbar-mobile-toggle"
-          onClick={() => setMobileOpen(!mobileOpen)}
+          onClick={() => setMobileOpen(true)}
         >
-          {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+          <Menu size={20} />
         </button>
 
-        {/* Nav links */}
-        <div
-          className={`navbar-links ${mobileOpen ? 'navbar-links-open' : ''}`}
-        >
-          <button
-            className="navbar-link navbar-link-simulate"
-            onClick={() => openSheet('simulate')}
-          >
-            <FlaskConical size={14} />
-            Simulate
-          </button>
-          <button
-            className="navbar-link"
-            onClick={() => {
-              setMobileOpen(false)
-              navigate({
-                to: '/',
-                search: (prev: Record<string, unknown>) => ({
-                  ...prev,
-                  modal: 'simulator',
-                }),
-                mask: { to: '/simulator' },
-              })
-            }}
-          >
-            <Sliders size={14} />
-            What-If
-          </button>
-
-          {user?.role === 'admin' && (
-            <>
-              <button
-                className="navbar-link"
-                onClick={() => {
-                  setMobileOpen(false)
-                  navigate({
-                    to: '/',
-                    search: (prev: Record<string, unknown>) => ({
-                      ...prev,
-                      modal: 'admin',
-                    }),
-                    mask: { to: '/admin' },
-                  })
-                }}
-              >
-                <Shield size={14} />
-                Admin
-              </button>
-              <button
-                className="navbar-link"
-                onClick={() => {
-                  setMobileOpen(false)
-                  navigate({
-                    to: '/',
-                    search: (prev: Record<string, unknown>) => ({
-                      ...prev,
-                      modal: 'prices',
-                    }),
-                    mask: { to: '/prices' },
-                  })
-                }}
-              >
-                <Tag size={14} />
-                Prices
-              </button>
-            </>
-          )}
-
-          <div className="navbar-spacer" />
-
-          {token ? (
-            <div className="navbar-user">
-              <span className="navbar-user-name">
-                <User size={13} />
-                {user?.fullName ?? 'User'}
-              </span>
-              <span className="navbar-user-divider" />
-              <button
-                className="navbar-link navbar-logout"
-                onClick={handleLogout}
-              >
-                <LogOut size={14} />
-                Logout
-              </button>
-            </div>
-          ) : (
-            <button
-              className="navbar-link navbar-login"
-              onClick={() => openSheet('login')}
-            >
-              <LogIn size={14} />
-              Login
-            </button>
-          )}
-        </div>
+        {/* Mobile Bottom Sheet */}
+        <BottomSheet presented={mobileOpen} onClose={() => setMobileOpen(false)}>
+          <div className="mobile-nav-sheet">
+            <h3 className="mobile-nav-title">Menu</h3>
+            <NavLinks
+              user={user}
+              token={!!token}
+              isMobile
+              onLogout={handleLogout}
+              onOpenSheet={(name) => {
+                setMobileOpen(false)
+                open(name)
+              }}
+              onNavigate={(modal) => {
+                setMobileOpen(false)
+                navigate({
+                  to: '/',
+                  search: (prev) => ({ ...prev, modal }),
+                  mask: { to: `/${modal}` },
+                })
+              }}
+            />
+          </div>
+        </BottomSheet>
       </nav>
     </header>
+  )
+}
+
+function NavLinks({
+  user,
+  token,
+  isMobile,
+  onLogout,
+  onOpenSheet,
+  onNavigate,
+}: {
+  user: any
+  token: boolean
+  isMobile?: boolean
+  onLogout: () => void
+  onOpenSheet: (name: SheetName) => void
+  onNavigate: (modal: string) => void
+}) {
+  return (
+    <div className={`nav-links-container ${isMobile ? 'nav-links--mobile' : ''}`}>
+      <button
+        className="navbar-link navbar-link-simulate"
+        onClick={() => onOpenSheet('simulate')}
+      >
+        <FlaskConical size={14} />
+        Simulate
+      </button>
+      <button className="navbar-link" onClick={() => onNavigate('simulator')}>
+        <Sliders size={14} />
+        What-If
+      </button>
+
+      {user?.role === 'admin' && (
+        <>
+          <button className="navbar-link" onClick={() => onNavigate('admin')}>
+            <Shield size={14} />
+            Admin
+          </button>
+          <button className="navbar-link" onClick={() => onNavigate('prices')}>
+            <Tag size={14} />
+            Prices
+          </button>
+        </>
+      )}
+
+      {isMobile ? null : <div className="navbar-spacer" />}
+
+      {token ? (
+        <div className="navbar-user">
+          <span className="navbar-user-name">
+            <User size={13} />
+            {user?.fullName ?? 'User'}
+          </span>
+          {isMobile ? null : <span className="navbar-user-divider" />}
+          <button className="navbar-link navbar-logout" onClick={onLogout}>
+            <LogOut size={14} />
+            Logout
+          </button>
+        </div>
+      ) : (
+        <button
+          className="navbar-link navbar-login"
+          onClick={() => onOpenSheet('login')}
+        >
+          <LogIn size={14} />
+          Login
+        </button>
+      )}
+    </div>
   )
 }

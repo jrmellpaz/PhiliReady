@@ -68,7 +68,7 @@ export function SimulatorContent() {
             <>
               <div className="simulator-cost-banner">
                 <span>Estimated 7-Day Total Cost</span>
-                <strong>₱{(totalWeekCost / 1_000_000).toFixed(2)}M</strong>
+                <strong>₱{totalWeekCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
               </div>
               <ForecastChart data={forecast} />
             </>

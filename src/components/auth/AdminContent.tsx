@@ -7,7 +7,8 @@ import {
   flexRender,
 } from '@tanstack/react-table'
 import * as Select from '@radix-ui/react-select'
-import { ChevronDown, X, Search, Check } from 'lucide-react'
+import { ChevronDown, X, Search, Check, UserPlus } from 'lucide-react'
+import { DialogSheet } from '#/components/ui/SilkSheets'
 import {
   useUsers,
   useAssignCities,
@@ -56,7 +57,7 @@ function useCityOptions() {
 
 /* ── Register form ─────────────────────────────────────────────── */
 
-function RegisterForm() {
+function RegisterForm({ onSuccess }: { onSuccess?: () => void }) {
   const [msg, setMsg] = useState<string | null>(null)
 
   const form = useForm({
@@ -77,6 +78,8 @@ function RegisterForm() {
         })
         setMsg(`User ${value.email} created successfully.`)
         form.reset()
+        // Auto-close dialog after a brief delay so the user sees the success message
+        if (onSuccess) setTimeout(onSuccess, 1200)
       } catch (err: unknown) {
         setMsg(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
       }
@@ -84,7 +87,7 @@ function RegisterForm() {
   })
 
   return (
-    <section className="admin-section">
+    <div className="admin-register-dialog">
       <h2 className="admin-section-title">Register New User</h2>
       <form
         className="admin-register-form"
@@ -176,7 +179,7 @@ function RegisterForm() {
         </form.Subscribe>
       </form>
       {msg && <p className="admin-msg">{msg}</p>}
-    </section>
+    </div>
   )
 }
 
@@ -409,6 +412,7 @@ function UsersTable() {
 
 export function AdminContent() {
   const { data: me } = useMe()
+  const [showRegister, setShowRegister] = useState(false)
 
   if (me?.role !== 'admin') {
     return (
@@ -422,9 +426,26 @@ export function AdminContent() {
 
   return (
     <div className="admin-page">
-      <h1 className="admin-title">Admin Panel</h1>
-      <RegisterForm />
+      <div className="admin-header">
+        <h1 className="admin-title">Admin Panel</h1>
+      </div>
+      <button
+        type="button"
+        className="admin-cta-btn"
+        onClick={() => setShowRegister(true)}
+      >
+        <UserPlus size={16} />
+        Register New User
+      </button>
       <UsersTable />
+
+      {/* Register form — stacked dialog on top */}
+      <DialogSheet
+        presented={showRegister}
+        onClose={() => setShowRegister(false)}
+      >
+        <RegisterForm onSuccess={() => setShowRegister(false)} />
+      </DialogSheet>
     </div>
   )
 }

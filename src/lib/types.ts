@@ -48,6 +48,10 @@ export const CityDetailSchema = z.object({
   region: z.string(),
   population: z.number(),
   households: z.number(),
+  povertyPct: z.number(),
+  isCoastal: z.number(),
+  floodZone: z.string(),
+  eqZone: z.string(),
   riskScore: z.number(),
   zoneType: z.string(),
   demand: CityDemandSchema,
@@ -107,12 +111,8 @@ export type WeatherDay = z.infer<typeof WeatherDaySchema>
 
 // ── City Update ───────────────────────────────────────────────────────────
 // PATCH /cities/{pcode} → CityUpdateResult
-export const CityUpdateResultSchema = z.object({
+export const CityUpdateResultSchema = CityDetailSchema.omit({ demand: true }).extend({
   message: z.string(),
-  changes: z.record(z.string(), z.unknown()),
-  newRiskScore: z.number(),
-  updatedBy: z.string(),
-  updatedAt: z.string(),
 })
 export type CityUpdateResult = z.infer<typeof CityUpdateResultSchema>
 

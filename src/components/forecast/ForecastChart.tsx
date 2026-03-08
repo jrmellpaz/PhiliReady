@@ -39,9 +39,8 @@ function ForecastTooltip({ active, payload, label }: any) {
           <span style={{ color: '#6B7F99', marginLeft: 6 }}>
             ₱
             {(
-              (data[`${key}Cost` as keyof ForecastPoint] as number) / 1000
-            ).toFixed(0)}
-            K
+              data[`${key}Cost` as keyof ForecastPoint] as number
+            ).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </p>
       ))}
@@ -53,7 +52,7 @@ function ForecastTooltip({ active, payload, label }: any) {
           paddingTop: 4,
         }}
       >
-        Total: ₱{(data.totalCost / 1000).toFixed(0)}K
+        Total: ₱{data.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
       </p>
     </div>
   )

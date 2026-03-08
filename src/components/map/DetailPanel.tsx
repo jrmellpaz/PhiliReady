@@ -1,8 +1,10 @@
-import { useCityDetail, useForecast } from '#/lib/queries'
+import { useState } from 'react'
+import { useCityDetail, useForecast, useMe, useUpdateCity } from '#/lib/queries'
 import { ForecastChart } from '#/components/forecast/ForecastChart'
 import { getDemandColor, getRiskLabel } from '#/lib/colors'
 import { SidebarSheet } from '#/components/ui/SilkSheets'
-import type { HazardType } from '#/lib/types'
+import { Pencil } from 'lucide-react'
+import type { HazardType, CityDetail } from '#/lib/types'
 
 interface Props {
   pcode: string
@@ -36,6 +38,8 @@ export function DetailPanel({
     simActive ? hazard : undefined,
     simActive ? severity : undefined,
   )
+  const { data: me } = useMe()
+  const [editing, setEditing] = useState(false)
 
   if (cityLoading)
     return (
@@ -90,10 +94,29 @@ export function DetailPanel({
         />
         <Stat
           label="7-Day Cost"
-          value={`₱${totalWeekCost.toLocaleString()}`}
+          value={`₱${totalWeekCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           color="#D48B0A"
         />
       </div>
+
+      {/* Edit Parameters */}
+      {me && !editing && (
+        <button
+          type="button"
+          className="panel-edit-btn"
+          onClick={() => setEditing(true)}
+        >
+          <Pencil size={13} />
+          Edit Parameters
+        </button>
+      )}
+      {editing && city && (
+        <EditCityForm
+          pcode={pcode}
+          city={city}
+          onClose={() => setEditing(false)}
+        />
+      )}
 
       {/* Demand bars */}
       <div className="panel-demand-section">
@@ -139,6 +162,173 @@ export function DetailPanel({
     </PanelShell>
   )
 }
+
+/* ── Edit City Form ────────────────────────────────────────────── */
+
+interface EditFormProps {
+  pcode: string
+  city: CityDetail
+  onClose: () => void
+}
+
+function EditCityForm({ pcode, city, onClose }: EditFormProps) {
+  const mutation = useUpdateCity()
+  const [msg, setMsg] = useState<string | null>(null)
+  const [msgType, setMsgType] = useState<'success' | 'error'>('success')
+
+  // Pre-fill from current city data where available
+  const [population, setPopulation] = useState(String(city.population))
+  const [households, setHouseholds] = useState(String(city.households))
+  const [povertyPct, setPovertyPct] = useState(
+    String((city.povertyPct * 100).toFixed(1)),
+  )
+  const [isCoastal, setIsCoastal] = useState(String(city.isCoastal))
+  const [floodZone, setFloodZone] = useState(city.floodZone)
+  const [eqZone, setEqZone] = useState(city.eqZone)
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    setMsg(null)
+
+    // Build payload with all editable fields
+    const body: Record<string, unknown> = {}
+    if (population) body.population = parseInt(population, 10)
+    if (households) body.households = parseInt(households, 10)
+    if (povertyPct) body.povertyPct = parseFloat(povertyPct) / 100
+    body.isCoastal = parseInt(isCoastal, 10)
+    body.floodZone = floodZone
+    body.eqZone = eqZone
+
+    mutation.mutate(
+      { pcode, body },
+      {
+        onSuccess: (data) => {
+          setMsg(
+            `Updated! New risk score: ${(data.riskScore * 100).toFixed(0)}%`,
+          )
+          setMsgType('success')
+        },
+        onError: (err) => {
+          setMsg(err instanceof Error ? err.message : 'Failed to update.')
+          setMsgType('error')
+        },
+      },
+    )
+  }
+
+  return (
+    <div className="panel-edit-section">
+      <p className="panel-section-label">EDIT PARAMETERS</p>
+      <form className="panel-edit-form" onSubmit={handleSubmit}>
+        <div className="panel-edit-row">
+          <label className="panel-edit-field">
+            <span className="panel-edit-label">Population</span>
+            <input
+              type="number"
+              className="panel-edit-input"
+              value={population}
+              onChange={(e) => setPopulation(e.target.value)}
+              min={1}
+              required
+            />
+          </label>
+          <label className="panel-edit-field">
+            <span className="panel-edit-label">Households</span>
+            <input
+              type="number"
+              className="panel-edit-input"
+              value={households}
+              onChange={(e) => setHouseholds(e.target.value)}
+              min={1}
+              required
+            />
+          </label>
+        </div>
+
+        <div className="panel-edit-row">
+          <label className="panel-edit-field">
+            <span className="panel-edit-label">Poverty %</span>
+            <input
+              type="number"
+              className="panel-edit-input"
+              value={povertyPct}
+              onChange={(e) => setPovertyPct(e.target.value)}
+              min={0}
+              max={100}
+              step={0.1}
+            />
+          </label>
+          <label className="panel-edit-field">
+            <span className="panel-edit-label">Coastal</span>
+            <select
+              className="panel-edit-select"
+              value={isCoastal}
+              onChange={(e) => setIsCoastal(e.target.value)}
+            >
+              <option value="0">Inland</option>
+              <option value="1">Coastal</option>
+            </select>
+          </label>
+        </div>
+
+        <div className="panel-edit-row">
+          <label className="panel-edit-field">
+            <span className="panel-edit-label">Flood Zone</span>
+            <select
+              className="panel-edit-select"
+              value={floodZone}
+              onChange={(e) => setFloodZone(e.target.value)}
+            >
+              <option value="">—</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </label>
+          <label className="panel-edit-field">
+            <span className="panel-edit-label">Earthquake Zone</span>
+            <select
+              className="panel-edit-select"
+              value={eqZone}
+              onChange={(e) => setEqZone(e.target.value)}
+            >
+              <option value="">—</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </label>
+        </div>
+
+        <div className="panel-edit-actions">
+          <button
+            type="submit"
+            className="panel-edit-save"
+            disabled={mutation.isPending}
+          >
+            {mutation.isPending ? 'Saving…' : 'Save Changes'}
+          </button>
+          <button
+            type="button"
+            className="panel-edit-cancel"
+            onClick={onClose}
+          >
+            Cancel
+          </button>
+        </div>
+        {msg && (
+          <p
+            className={`panel-edit-msg ${msgType === 'error' ? 'panel-edit-msg--error' : ''}`}
+          >
+            {msg}
+          </p>
+        )}
+      </form>
+    </div>
+  )
+}
+
+/* ── Shell / helpers ───────────────────────────────────────────── */
 
 function PanelShell({
   name,
