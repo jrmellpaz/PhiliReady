@@ -1,3 +1,4 @@
+import { toast } from 'sonner'
 import { authHeaders } from './auth'
 import type {
   HazardType,
@@ -15,13 +16,33 @@ import type {
 
 const BASE = import.meta.env.VITE_API_BASE_URL // includes /api/v1
 
+/** Custom error that preserves the HTTP status code */
+export class ApiError extends Error {
+  status: number
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
+const RATE_LIMIT_MSG = 'Too many requests — please wait a moment and try again.'
+
+/** Handles non-ok responses, showing a toast for 429 rate-limit errors */
+function handleResponseError(res: Response, detail?: string): never {
+  if (res.status === 429) {
+    toast.warning(RATE_LIMIT_MSG)
+  }
+  throw new ApiError(detail || `Request failed: ${res.status}`, res.status)
+}
+
 async function get<T>(path: string, auth = false): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     headers: auth ? authHeaders() : {},
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.detail || `Request failed: ${res.status}`)
+    handleResponseError(res, err.detail)
   }
   return res.json()
 }
@@ -42,7 +63,7 @@ async function mutate<T>(
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.detail || `Request failed: ${res.status}`)
+    handleResponseError(res, err.detail)
   }
   return res.json()
 }

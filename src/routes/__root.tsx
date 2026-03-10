@@ -3,6 +3,7 @@ import {
   Scripts,
   createRootRouteWithContext,
 } from '@tanstack/react-router'
+import { Toaster } from 'sonner'
 import Navbar from '../components/Header'
 
 import TanStackQueryProvider from '../integrations/tanstack-query/root-provider'
@@ -60,6 +61,15 @@ function RootDocument({ children }: { children: React.ReactNode }) {
             </div>
           </SheetStateProvider>
         </TanStackQueryProvider>
+        <Toaster
+          position="bottom-right"
+          richColors
+          toastOptions={{
+            style: {
+              fontFamily: 'inherit',
+            },
+          }}
+        />
         <Scripts />
       </body>
     </html>
