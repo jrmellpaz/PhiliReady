@@ -27,8 +27,9 @@ const C = {
 
 const W        = 210
 const H        = 297
-const MAR      = 18
-const PARA_GAP = 3   // mm of space added after each paragraph
+const MAR      = 18          
+const INNER    = W - MAR * 2 
+const PARA_GAP = 3
 
 type RGB = readonly [number, number, number]
 
@@ -57,18 +58,10 @@ function pct(v: number): string {
   return `${(v * 100).toFixed(0)}%`
 }
 
-/** Renders wrapped text; returns updated y. */
-function textBlock(
-  doc: jsPDF,
-  text: string,
-  x: number,
-  y: number,
-  maxW: number,
-): number {
-  const lines  = doc.splitTextToSize(text, maxW) as string[]
-  const lineH  = getLineH(doc)
+function textBlock(doc: jsPDF, text: string, x: number, y: number, maxW: number): number {
+  const lines = doc.splitTextToSize(text, maxW) as string[]
   doc.text(lines, x, y)
-  return y + lines.length * lineH
+  return y + lines.length * getLineH(doc)
 }
 
 /* ── Section label ──────────────────────────────────────────────── */
@@ -86,43 +79,61 @@ function sectionLabel(doc: jsPDF, label: string, y: number): number {
     W - MAR,
     y - 0.5,
   )
-  return y + 5
+  return y + 4.5
 }
 
 /* ── Stats grid ─────────────────────────────────────────────────── */
+// 2-column grid matching the UI: all-caps small label, large bold value,
+// generous internal padding, clear gap between cards
 
 function statsGrid(
   doc: jsPDF,
   stats: Array<{ label: string; value: string; color?: RGB }>,
   y: number,
 ): number {
-  const colW = (W - MAR * 2) / 2
-  const rowH = 14
-  stats.forEach((s, i) => {
-    const col = i % 2
-    const row = Math.floor(i / 2)
-    const cx = MAR + col * colW
-    const cy = y + row * rowH
+  const cols   = 2
+  const gap    = 3                              // gap between columns
+  const colW   = (INNER - gap) / cols           // each card width
+  const cardH  = 16                             // card height
+  const rowGap = 3                              // gap between rows
 
+  stats.forEach((s, i) => {
+    const col = i % cols
+    const row = Math.floor(i / cols)
+    const cx  = MAR + col * (colW + gap)
+    const cy  = y + row * (cardH + rowGap)
+
+    // Card background + border
     setFill(doc, C.offwht)
     setDraw(doc, C.pale)
     doc.setLineWidth(0.2)
-    doc.roundedRect(cx, cy, colW - 2, rowH - 2, 2, 2, 'FD')
+    doc.roundedRect(cx, cy, colW, cardH, 2, 2, 'FD')
 
-    doc.setFontSize(7)
-    doc.setFont('helvetica', 'normal')
+    // ALL-CAPS label — matches UI style
+    doc.setFontSize(6.5)
+    doc.setFont('helvetica', 'bold')
     setTxt(doc, C.muted)
-    doc.text(s.label, cx + 4, cy + 5)
+    doc.text(s.label.toUpperCase(), cx + 5, cy + 4.5)
 
-    doc.setFontSize(11)
+    // Large bold value — tighter gap below label
+    doc.setFontSize(12)
     doc.setFont('helvetica', 'bold')
     setTxt(doc, s.color ?? C.navy)
-    doc.text(s.value, cx + 4, cy + 11)
+    doc.text(s.value, cx + 5, cy + 11.5)
   })
-  return y + Math.ceil(stats.length / 2) * rowH + 2
+
+  const rows = Math.ceil(stats.length / cols)
+  return y + rows * (cardH + rowGap) - rowGap + 4
 }
 
-/* ── Demand bar ─────────────────────────────────────────────────── */
+/* ── Demand bar — single line: LABEL ▏▓▓▓▓░░░░▏ VALUE ─────────── */
+
+const DEMAND_LABEL_W = 26  
+const DEMAND_VAL_W   = 34  
+const DEMAND_GAP     = 3  
+const DEMAND_BAR_W   = INNER - DEMAND_LABEL_W - DEMAND_VAL_W - DEMAND_GAP * 2
+const DEMAND_ROW_H   = 7.5  
+const DEMAND_BAR_H   = 3.0
 
 function demandBar(
   doc: jsPDF,
@@ -133,27 +144,38 @@ function demandBar(
   max: number,
   y: number,
 ): number {
-  const barW = W - MAR * 2 - 50
-  const fill = Math.min(value / max, 1)
+  const fill   = Math.min(value / max, 1)
+  const midY   = y + DEMAND_ROW_H / 2        
+  const textY  = midY + 1                   
+  const barY   = midY - DEMAND_BAR_H / 2   
 
-  doc.setFontSize(8)
+  const barX   = MAR + DEMAND_LABEL_W + DEMAND_GAP
+  const valX   = barX + DEMAND_BAR_W + DEMAND_GAP
+
+  // Label
+  doc.setFontSize(7.5)
   doc.setFont('helvetica', 'normal')
   setTxt(doc, C.navy)
-  doc.text(label, MAR, y)
+  doc.text(label, MAR, textY)
 
-  setTxt(doc, color)
-  doc.text(`${formatNum(value)} ${unit}`, MAR + barW + 4, y)
-
-  const bY = y + 1.5
+  // Bar track
   setFill(doc, C.pale)
-  doc.roundedRect(MAR, bY, barW, 3, 1, 1, 'F')
-  setFill(doc, color)
-  if (fill > 0) doc.roundedRect(MAR, bY, barW * fill, 3, 1, 1, 'F')
+  doc.roundedRect(barX, barY, DEMAND_BAR_W, DEMAND_BAR_H, 1, 1, 'F')
 
-  return y + 8
+  // Bar fill
+  setFill(doc, color)
+  if (fill > 0) doc.roundedRect(barX, barY, DEMAND_BAR_W * fill, DEMAND_BAR_H, 1, 1, 'F')
+
+  // Value — right-aligned in its column
+  doc.setFontSize(7.5)
+  doc.setFont('helvetica', 'bold')
+  setTxt(doc, color)
+  doc.text(`${formatNum(value)} ${unit}`, valX + DEMAND_VAL_W, textY, { align: 'right' })
+
+  return y + DEMAND_ROW_H 
 }
 
-/* ── Forecast table ─────────────────────────────────────────────── */
+/* ── Forecast table — full content width ────────────────────────── */
 
 function forecastTable(doc: jsPDF, data: ForecastPoint[], y: number): number {
   const cols = [
@@ -165,7 +187,7 @@ function forecastTable(doc: jsPDF, data: ForecastPoint[], y: number): number {
     { label: 'Day Cost',  w: 34 },
   ]
   const totalW = cols.reduce((s, c) => s + c.w, 0)
-  const startX = MAR + (W - MAR * 2 - totalW) / 2
+  const startX = MAR + (INNER - totalW) / 2  // centred within margins
 
   // Header
   setFill(doc, C.navy)
@@ -260,7 +282,7 @@ export function buildReportPDF(
   if (input.simActive && input.hazard) {
     const sevLabel = ['', 'Minor', 'Moderate', 'Major', 'Catastrophic'][input.severity ?? 1]
     setFill(doc, C.red)
-    doc.roundedRect(MAR, y, 76, 7, 2, 2, 'F')
+    doc.roundedRect(MAR, y, 90, 7, 2, 2, 'F')
     doc.setFontSize(8)
     doc.setFont('helvetica', 'bold')
     setTxt(doc, C.white)
@@ -295,8 +317,9 @@ export function buildReportPDF(
       ? [{ label: 'Flood Zone', value: input.floodZone.charAt(0).toUpperCase() + input.floodZone.slice(1) }]
       : []),
   ], y)
-  y += 3
+  y += 2
 
+  y += 2
   /* ── Demand bars ──────────────────────────────────────────────── */
   y = sectionLabel(doc, 'Peak Demand Estimates', y)
   const maxDemand = Math.max(input.demand.rice, input.demand.water, 20000)
@@ -304,8 +327,9 @@ export function buildReportPDF(
   y = demandBar(doc, 'Water',        input.demand.water, 'L',     C.teal,  maxDemand, y)
   y = demandBar(doc, 'Medical Kits', input.demand.meds,  'units', C.amber, maxDemand, y)
   y = demandBar(doc, 'Hygiene Kits', input.demand.kits,  'units', C.red,   maxDemand, y)
-  y += 3
+  y += 2
 
+  y += 2
   /* ── Forecast table ───────────────────────────────────────────── */
   if (forecast.length > 0) {
     y = sectionLabel(doc, '7-Day Forecast Breakdown', y)
@@ -339,7 +363,7 @@ export function buildReportPDF(
   setTxt(doc, C.navy)
 
   for (const para of paragraphs) {
-    const lines   = doc.splitTextToSize(para, W - MAR * 2) as string[]
+    const lines   = doc.splitTextToSize(para, INNER) as string[]
     const lineH   = getLineH(doc)
     const neededH = lines.length * lineH + PARA_GAP
 
@@ -348,7 +372,7 @@ export function buildReportPDF(
       y = 20
     }
 
-    y = textBlock(doc, para, MAR, y, W - MAR * 2)
+    y = textBlock(doc, para, MAR, y, INNER)
     y += PARA_GAP
   }
 

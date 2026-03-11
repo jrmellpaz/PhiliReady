@@ -3,7 +3,7 @@ import { useCityDetail, useForecast, useMe, useUpdateCity } from '#/lib/queries'
 import { ForecastChart } from '#/components/forecast/ForecastChart'
 import { getDemandColor, getRiskLabel } from '#/lib/colors'
 import { SidebarSheet } from '#/components/ui/SilkSheets'
-import { Pencil, Sparkles, Loader2, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react'
+import { Pencil, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react'
 import type { HazardType, CityDetail } from '#/lib/types'
 import { ExportButton } from '#/components/export/ExportButton'
 import {
@@ -49,28 +49,12 @@ export function DetailPanel({
   const [editing, setEditing] = useState(false)
 
   // ── AI assessment state ──────────────────────────────────────────
-  const [aiText, setAiText]       = useState<string | null>(null)
-  const [aiLoading, setAiLoading] = useState(false)
-  const [aiError, setAiError]     = useState<string | null>(null)
+  const [aiText, setAiText]         = useState<string | null>(null)
+  const [aiLoading, setAiLoading]   = useState(false)
+  const [aiError, setAiError]       = useState<string | null>(null)
   const [aiExpanded, setAiExpanded] = useState(true)
 
-  // Reset local AI state whenever the city or active scenario changes.
-  // Cached results from ai-explain.ts are still preserved, so switching
-  // back to a previously-assessed city will restore via getCachedExplanation.
-  useEffect(() => {
-    setAiText(null)
-    setAiError(null)
-    setAiLoading(false)
-    setAiExpanded(true)
-  }, [pcode, hazard, severity, simActive])
-
-  if (cityLoading)
-    return (
-      <PanelShell name={name} presented={presented} onClose={onClose}>
-        <Spinner />
-      </PanelShell>
-    )
-
+  // Derive explainInput early (may be null while data loads)
   const totalWeekCost = forecast?.reduce((sum, d) => sum + d.totalCost, 0) ?? 0
 
   const explainInput: ExplainInput | null = city && forecast
@@ -120,8 +104,46 @@ export function DetailPanel({
     await handleGenerateAI()
   }
 
+  // Reset local AI state whenever the city or active scenario changes.
+  useEffect(() => {
+    setAiText(null)
+    setAiError(null)
+    setAiLoading(false)
+    setAiExpanded(true)
+  }, [pcode, hazard, severity, simActive])
+
+  // Auto-generate when city data + forecast are ready, unless already cached.
+  useEffect(() => {
+    if (!explainInput) return
+    if (resolvedAiText) return
+    handleGenerateAI()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [explainInput])
+
+  if (cityLoading)
+    return (
+      <PanelShell name={name} presented={presented} onClose={onClose}>
+        <Spinner />
+      </PanelShell>
+    )
+
   return (
-    <PanelShell name={name} presented={presented} onClose={onClose}>
+    <PanelShell
+      name={name}
+      presented={presented}
+      onClose={onClose}
+      absoluteAction={
+        explainInput && forecast ? (
+          <div className="panel-export-abs">
+            <ExportButton
+              input={explainInput}
+              forecast={forecast}
+              cachedAiText={resolvedAiText}
+            />
+          </div>
+        ) : undefined
+      }
+    >
       {/* Location + Risk badge */}
       <div className="panel-location">
         <span className="panel-location-text">
@@ -238,7 +260,7 @@ export function DetailPanel({
                 AI ASSESSMENT
               </p>
               {resolvedAiText && (() => {
-                const cached = explainInput ? getCachedExplanation(explainInput) : null
+                const cached = getCachedExplanation(explainInput)
                 return cached ? (
                   <p className="panel-ai-timestamp">
                     Generated {new Date(cached.generatedAt).toLocaleDateString('en-US', {
@@ -249,13 +271,12 @@ export function DetailPanel({
               })()}
             </div>
             <div className="panel-ai-header-actions">
-              {resolvedAiText && (
+              {resolvedAiText && !aiLoading && (
                 <>
                   <button
                     type="button"
                     className="panel-ai-icon-btn"
                     onClick={handleRegenerateAI}
-                    disabled={aiLoading}
                     title="Regenerate"
                   >
                     <RefreshCw size={12} />
@@ -273,33 +294,27 @@ export function DetailPanel({
             </div>
           </div>
 
-          {/* Not yet generated */}
-          {!resolvedAiText && !aiLoading && (
-            <button
-              type="button"
-              className="panel-ai-generate-btn"
-              onClick={handleGenerateAI}
-            >
-              <Sparkles size={13} />
-              Generate AI Assessment
-            </button>
-          )}
-
-          {/* Loading */}
+          {/* Skeleton while loading */}
           {aiLoading && (
-            <div className="panel-ai-loading">
-              <Loader2 size={14} className="export-btn-spin" />
-              <span>Generating assessment…</span>
+            <div className="panel-ai-skeleton">
+              <div className="panel-ai-skeleton-line" style={{ width: '92%' }} />
+              <div className="panel-ai-skeleton-line" style={{ width: '85%' }} />
+              <div className="panel-ai-skeleton-line" style={{ width: '88%' }} />
+              <div className="panel-ai-skeleton-line" style={{ width: '40%' }} />
+              <div className="panel-ai-skeleton-gap" />
+              <div className="panel-ai-skeleton-line" style={{ width: '90%' }} />
+              <div className="panel-ai-skeleton-line" style={{ width: '82%' }} />
+              <div className="panel-ai-skeleton-line" style={{ width: '55%' }} />
             </div>
           )}
 
-          {/* Error */}
+          {/* Error with retry */}
           {aiError && !aiLoading && (
             <div className="panel-ai-error">
               <p>{aiError}</p>
               <button
                 type="button"
-                className="panel-ai-generate-btn"
+                className="panel-ai-retry-btn"
                 onClick={handleGenerateAI}
               >
                 Retry
@@ -320,15 +335,6 @@ export function DetailPanel({
             </div>
           )}
         </div>
-      )}
-
-      {/* Export — passes cached AI text so no second API call */}
-      {explainInput && forecast && (
-        <ExportButton
-          input={explainInput}
-          forecast={forecast}
-          cachedAiText={resolvedAiText}
-        />
       )}
 
       {/* Audit trail */}
@@ -514,16 +520,20 @@ function PanelShell({
   name,
   presented,
   onClose,
+  absoluteAction,
   children,
 }: {
   name: string
   presented: boolean
   onClose: () => void
+  absoluteAction?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
     <SidebarSheet presented={presented} onClose={onClose}>
       <div className="detail-panel">
+        {/* Sits in the same stacking context as SilkSheets' close btn */}
+        {absoluteAction}
         <div className="panel-header">
           <h2 className="panel-title">{name}</h2>
         </div>

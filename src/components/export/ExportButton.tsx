@@ -5,7 +5,7 @@
  */
 
 import { useState } from 'react'
-import { FileDown, Loader2, Sparkles } from 'lucide-react'
+import { FileDown, Loader2 } from 'lucide-react'
 import { generateExplanation } from '#/lib/ai-explain'
 import { buildReportPDF, reportFileName } from '#/components/export/pdfBuilder'
 import type { ExplainInput } from '#/lib/ai-explain'
@@ -71,7 +71,7 @@ export function ExportButton({
           ? <Loader2 size={14} className="export-btn-spin" />
           : <><FileDown size={14} /></>
         }
-        {stageLabel}
+        {stageLabel && <span className="export-btn-label">{stageLabel}</span>}
       </button>
 
       {stage === 'error' && errMsg && (
