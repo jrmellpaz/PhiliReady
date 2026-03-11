@@ -5,6 +5,8 @@ import { getDemandColor, getRiskLabel } from '#/lib/colors'
 import { SidebarSheet } from '#/components/ui/SilkSheets'
 import { Pencil } from 'lucide-react'
 import type { HazardType, CityDetail } from '#/lib/types'
+import { ExportButton } from '#/components/export/ExportButton'
+import type { ExplainInput } from '#/lib/ai-explain'
 
 interface Props {
   pcode: string
@@ -49,6 +51,26 @@ export function DetailPanel({
     )
 
   const totalWeekCost = forecast?.reduce((sum, d) => sum + d.totalCost, 0) ?? 0
+  
+  const explainInput: ExplainInput | null = city && forecast
+  ? {
+      cityName: name,
+      province: city.province,
+      region: city.region,
+      population: city.population,
+      households: city.households,
+      povertyPct: city.povertyPct,
+      isCoastal: !!city.isCoastal,
+      floodZone: city.floodZone,
+      eqZone: city.eqZone,
+      riskScore: city.riskScore,
+      demand: city.demand,
+      totalWeekCost,
+      simActive,
+      hazard,
+      severity,
+    }
+  : null
 
   return (
     <PanelShell name={name} presented={presented} onClose={onClose}>
@@ -150,6 +172,13 @@ export function DetailPanel({
       {/* Forecast chart */}
       <p className="panel-section-label">7-DAY FORECAST</p>
       {fxLoading ? <Spinner /> : forecast && <ForecastChart data={forecast} />}
+
+      {explainInput && forecast && (
+        <ExportButton
+          input={explainInput}
+          forecast={forecast}
+        />
+      )}
 
       {/* Audit trail */}
       {city?.updatedBy && (
