@@ -69,7 +69,7 @@ export function ExportButton({
       >
         {busy
           ? <Loader2 size={14} className="export-btn-spin" />
-          : <><Sparkles size={13} /><FileDown size={14} /></>
+          : <><FileDown size={14} /></>
         }
         {stageLabel}
       </button>

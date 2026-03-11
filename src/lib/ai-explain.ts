@@ -2,7 +2,7 @@
  * ai-explain.ts
  * Generates a disaster-preparedness narrative via the Groq API (free tier).
  *
- * Set VITE_GROQ_API_KEY in your .env file.
+ * Set VITE_LLM_API_KEY in your .env file.
  * Sign up at https://console.groq.com — free, no credit card needed.
  */
 
@@ -51,6 +51,101 @@ export interface ExplainResult {
   generatedAt: string
 }
 
+/* ── Persistent cache (localStorage + in-memory) ────────────────── */
+// In-memory layer for fast same-session access.
+// localStorage layer so assessments survive page refreshes.
+//
+// Storage key format:  philiready:ai:<cacheKey>
+// We store a lightweight index under "philiready:ai:__index" so we can
+// evict the oldest entries when storage is near full (max MAX_ENTRIES).
+
+const LS_PREFIX   = 'philiready:ai:'
+const LS_INDEX    = 'philiready:ai:__index'
+const MAX_ENTRIES = 100  // cities × scenarios before LRU eviction
+
+const _mem = new Map<string, ExplainResult>()
+
+function cacheKey(input: ExplainInput): string {
+  return [
+    input.cityName,
+    input.province ?? '',
+    input.hazard ?? 'none',
+    String(input.severity ?? 0),
+    // Include the riskScore bucket so a data edit triggers a fresh call
+    String(Math.round((input.riskScore ?? 0) * 100)),
+    String(Math.round(input.population / 1000)), // bucket by ~1 k
+  ].join('|')
+}
+
+function lsKey(key: string): string {
+  return LS_PREFIX + key
+}
+
+/** Read the LRU index (ordered oldest → newest). */
+function readIndex(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(LS_INDEX) ?? '[]') as string[]
+  } catch {
+    return []
+  }
+}
+
+/** Persist the LRU index. */
+function writeIndex(index: string[]): void {
+  try {
+    localStorage.setItem(LS_INDEX, JSON.stringify(index))
+  } catch { /* storage unavailable */ }
+}
+
+/** Write one result to localStorage, evicting oldest if over limit. */
+function lsWrite(key: string, result: ExplainResult): void {
+  try {
+    const index = readIndex().filter(k => k !== key) // remove if already present
+    index.push(key)  // push to end (newest)
+
+    // Evict oldest entries if over limit
+    while (index.length > MAX_ENTRIES) {
+      const oldest = index.shift()!
+      localStorage.removeItem(lsKey(oldest))
+    }
+
+    localStorage.setItem(lsKey(key), JSON.stringify(result))
+    writeIndex(index)
+  } catch { /* quota exceeded or unavailable — fail silently */ }
+}
+
+/** Read one result from localStorage (null if missing/corrupt). */
+function lsRead(key: string): ExplainResult | null {
+  try {
+    const raw = localStorage.getItem(lsKey(key))
+    return raw ? (JSON.parse(raw) as ExplainResult) : null
+  } catch {
+    return null
+  }
+}
+
+/** Remove one result from localStorage and the index. */
+function lsDelete(key: string): void {
+  try {
+    localStorage.removeItem(lsKey(key))
+    writeIndex(readIndex().filter(k => k !== key))
+  } catch { /* storage unavailable */ }
+}
+
+/** Expose cache for components that want to check without calling the API. */
+export function getCachedExplanation(input: ExplainInput): ExplainResult | null {
+  const key = cacheKey(input)
+  // Check in-memory first, then fall back to localStorage
+  return _mem.get(key) ?? lsRead(key) ?? null
+}
+
+/** Manually invalidate a cache entry (e.g. after city parameters are edited). */
+export function clearCachedExplanation(input: ExplainInput): void {
+  const key = cacheKey(input)
+  _mem.delete(key)
+  lsDelete(key)
+}
+
 /* ── Prompt builder ─────────────────────────────────────────────── */
 
 function buildPrompt(input: ExplainInput): string {
@@ -76,13 +171,17 @@ function buildPrompt(input: ExplainInput): string {
     ? `Active Scenario: ${input.hazard ?? 'Unknown'} - Severity ${input.severity}/4 (${severityLabel[input.severity ?? 0] ?? ''})`
     : 'Baseline (no active scenario)'
 
-  return `You are a senior disaster-preparedness analyst for the Philippine government. Write a professional assessment report section (3 short paragraphs, 220 words max total) based on the data below.
+  return `You are a senior disaster-preparedness analyst for the Philippine government. Write a professional assessment report section (4 short paragraphs, 280 words max total) based ONLY on the data provided below.
 
 Rules:
 - Plain text ONLY. No markdown, no bullet points, no headers, no numbered lists.
 - Use only basic ASCII characters. No smart quotes, no em dashes, no curly apostrophes.
 - Use straight single quotes (') and hyphens (-) instead of dashes.
 - Separate paragraphs with a single blank line.
+- NEVER invent or cite specific quantities, figures, or numbers that are not explicitly given in the data below. If you want to reference demand, use the figures provided exactly as given.
+- NEVER name specific government agencies, NGOs, or organizations (e.g. do not mention DPWH, Philippine Red Cross, DSWD, NDRRMC, or any other named body). Use general terms like "local authorities", "relief coordinators", or "logistics teams" instead.
+- NEVER fabricate details about infrastructure (warehouses, water treatment plants, roads) that are not stated in the data.
+- Stick to planning-level guidance. Do not write as if issuing operational orders.
 
 === LOCATION ===
 ${location}
@@ -103,9 +202,13 @@ Hygiene Kits: ${input.demand.kits.toLocaleString('en-US')} units
 === 7-DAY FORECAST ===
 Total estimated cost: ${weekCost}
 
-Paragraph 1 - Risk overview: Summarise the vulnerability profile of this area and why the risk score is as stated.
-Paragraph 2 - Resource demand justification: Explain the estimated demand figures in context of population size, hazard type, and socioeconomic factors.
-Paragraph 3 - Recommended actions: Give 2-3 concrete pre-positioning or logistics recommendations for relief coordinators.`
+Paragraph 1 - Risk overview: Summarize the vulnerability profile of this area. Reference specific data points (coastal status, flood/earthquake zone, poverty rate) and explain why the risk score is what it is.
+
+Paragraph 2 - Resource demand justification: Explain why the demand estimates are set at these specific quantities. Connect them to population size, household count, hazard type, and poverty rate. If a figure seems high or low relative to population, explain why.
+
+Paragraph 3 - Immediate pre-positioning actions: Give 2-3 concrete, time-bound logistics actions relief coordinators should take within 72 hours. Base these on the hazard type, flood/earthquake zone classification, and coastal status. Do NOT cite specific quantities or name specific agencies - focus on the category of action and the reasoning behind it.
+
+Paragraph 4 - Longer-term preparedness gaps: Identify 1-2 structural vulnerabilities (e.g. road access in flood zones, coastal warehouse exposure, low-income household reach) and recommend a specific mitigation measure for each.`
 }
 
 /* ── Sanitise AI output for jsPDF ───────────────────────────────── */
@@ -131,6 +234,10 @@ export async function generateExplanation(
   input: ExplainInput,
   apiKey?: string,
 ): Promise<ExplainResult> {
+  // Return cached result immediately if available
+  const cached = getCachedExplanation(input)
+  if (cached) return cached
+
   const key = apiKey ?? (import.meta.env.VITE_LLM_API_KEY as string | undefined)
   if (!key) throw new Error('VITE_LLM_API_KEY is not set.')
 
@@ -142,7 +249,7 @@ export async function generateExplanation(
     },
     body: JSON.stringify({
       model: 'llama-3.1-8b-instant',
-      max_tokens: 512,
+      max_tokens: 600,
       temperature: 0.35,
       top_p: 0.9,
       messages: [
@@ -173,5 +280,12 @@ export async function generateExplanation(
   const raw = data.choices?.[0]?.message?.content ?? ''
   const text = sanitizeText(raw) || 'No explanation could be generated.'
 
-  return { text, generatedAt: new Date().toISOString() }
+  const result: ExplainResult = { text, generatedAt: new Date().toISOString() }
+
+  // Write to both in-memory and localStorage so it survives page refreshes
+  const ck = cacheKey(input)
+  _mem.set(ck, result)
+  lsWrite(ck, result)
+
+  return result
 }

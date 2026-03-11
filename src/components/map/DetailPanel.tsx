@@ -1,11 +1,16 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useCityDetail, useForecast, useMe, useUpdateCity } from '#/lib/queries'
 import { ForecastChart } from '#/components/forecast/ForecastChart'
 import { getDemandColor, getRiskLabel } from '#/lib/colors'
 import { SidebarSheet } from '#/components/ui/SilkSheets'
-import { Pencil } from 'lucide-react'
+import { Pencil, Sparkles, Loader2, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react'
 import type { HazardType, CityDetail } from '#/lib/types'
 import { ExportButton } from '#/components/export/ExportButton'
+import {
+  generateExplanation,
+  getCachedExplanation,
+  clearCachedExplanation,
+} from '#/lib/ai-explain'
 import type { ExplainInput } from '#/lib/ai-explain'
 
 interface Props {
@@ -43,6 +48,22 @@ export function DetailPanel({
   const { data: me } = useMe()
   const [editing, setEditing] = useState(false)
 
+  // ── AI assessment state ──────────────────────────────────────────
+  const [aiText, setAiText]       = useState<string | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError]     = useState<string | null>(null)
+  const [aiExpanded, setAiExpanded] = useState(true)
+
+  // Reset local AI state whenever the city or active scenario changes.
+  // Cached results from ai-explain.ts are still preserved, so switching
+  // back to a previously-assessed city will restore via getCachedExplanation.
+  useEffect(() => {
+    setAiText(null)
+    setAiError(null)
+    setAiLoading(false)
+    setAiExpanded(true)
+  }, [pcode, hazard, severity, simActive])
+
   if (cityLoading)
     return (
       <PanelShell name={name} presented={presented} onClose={onClose}>
@@ -51,26 +72,53 @@ export function DetailPanel({
     )
 
   const totalWeekCost = forecast?.reduce((sum, d) => sum + d.totalCost, 0) ?? 0
-  
+
   const explainInput: ExplainInput | null = city && forecast
-  ? {
-      cityName: name,
-      province: city.province,
-      region: city.region,
-      population: city.population,
-      households: city.households,
-      povertyPct: city.povertyPct,
-      isCoastal: !!city.isCoastal,
-      floodZone: city.floodZone,
-      eqZone: city.eqZone,
-      riskScore: city.riskScore,
-      demand: city.demand,
-      totalWeekCost,
-      simActive,
-      hazard,
-      severity,
+    ? {
+        cityName: name,
+        province: city.province,
+        region: city.region,
+        population: city.population,
+        households: city.households,
+        povertyPct: city.povertyPct,
+        isCoastal: !!city.isCoastal,
+        floodZone: city.floodZone,
+        eqZone: city.eqZone,
+        riskScore: city.riskScore,
+        demand: city.demand,
+        totalWeekCost,
+        simActive,
+        hazard,
+        severity,
+      }
+    : null
+
+  // Resolve which text to use: local state > cache > null
+  const resolvedAiText = aiText
+    ?? (explainInput ? getCachedExplanation(explainInput)?.text ?? null : null)
+
+  const handleGenerateAI = async () => {
+    if (!explainInput) return
+    setAiLoading(true)
+    setAiError(null)
+    try {
+      const result = await generateExplanation(explainInput)
+      setAiText(result.text)
+      setAiExpanded(true)
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : 'Failed to generate assessment.')
+    } finally {
+      setAiLoading(false)
     }
-  : null
+  }
+
+  const handleRegenerateAI = async () => {
+    if (!explainInput) return
+    // Bust the cache for this city so a fresh call is made
+    clearCachedExplanation(explainInput)
+    setAiText(null)
+    await handleGenerateAI()
+  }
 
   return (
     <PanelShell name={name} presented={presented} onClose={onClose}>
@@ -116,7 +164,10 @@ export function DetailPanel({
         />
         <Stat
           label="7-Day Cost"
-          value={`₱${totalWeekCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          value={`₱${totalWeekCost.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}`}
           color="#D48B0A"
         />
       </div>
@@ -136,7 +187,12 @@ export function DetailPanel({
         <EditCityForm
           pcode={pcode}
           city={city}
-          onClose={() => setEditing(false)}
+          onClose={() => {
+            setEditing(false)
+            // Bust AI cache when data changes so next generation is fresh
+            if (explainInput) clearCachedExplanation(explainInput)
+            setAiText(null)
+          }}
         />
       )}
 
@@ -173,10 +229,105 @@ export function DetailPanel({
       <p className="panel-section-label">7-DAY FORECAST</p>
       {fxLoading ? <Spinner /> : forecast && <ForecastChart data={forecast} />}
 
+      {/* ── AI Assessment ─────────────────────────────────────────── */}
+      {explainInput && (
+        <div className="panel-ai-section">
+          <div className="panel-ai-header">
+            <div>
+              <p className="panel-section-label" style={{ margin: 0 }}>
+                AI ASSESSMENT
+              </p>
+              {resolvedAiText && (() => {
+                const cached = explainInput ? getCachedExplanation(explainInput) : null
+                return cached ? (
+                  <p className="panel-ai-timestamp">
+                    Generated {new Date(cached.generatedAt).toLocaleDateString('en-US', {
+                      month: 'short', day: 'numeric', year: 'numeric',
+                    })}
+                  </p>
+                ) : null
+              })()}
+            </div>
+            <div className="panel-ai-header-actions">
+              {resolvedAiText && (
+                <>
+                  <button
+                    type="button"
+                    className="panel-ai-icon-btn"
+                    onClick={handleRegenerateAI}
+                    disabled={aiLoading}
+                    title="Regenerate"
+                  >
+                    <RefreshCw size={12} />
+                  </button>
+                  <button
+                    type="button"
+                    className="panel-ai-icon-btn"
+                    onClick={() => setAiExpanded(v => !v)}
+                    title={aiExpanded ? 'Collapse' : 'Expand'}
+                  >
+                    {aiExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Not yet generated */}
+          {!resolvedAiText && !aiLoading && (
+            <button
+              type="button"
+              className="panel-ai-generate-btn"
+              onClick={handleGenerateAI}
+            >
+              <Sparkles size={13} />
+              Generate AI Assessment
+            </button>
+          )}
+
+          {/* Loading */}
+          {aiLoading && (
+            <div className="panel-ai-loading">
+              <Loader2 size={14} className="export-btn-spin" />
+              <span>Generating assessment…</span>
+            </div>
+          )}
+
+          {/* Error */}
+          {aiError && !aiLoading && (
+            <div className="panel-ai-error">
+              <p>{aiError}</p>
+              <button
+                type="button"
+                className="panel-ai-generate-btn"
+                onClick={handleGenerateAI}
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* Result */}
+          {resolvedAiText && !aiLoading && aiExpanded && (
+            <div className="panel-ai-body">
+              {resolvedAiText
+                .split(/\n{2,}/)
+                .map((p, i) => (
+                  <p key={i} className="panel-ai-paragraph">
+                    {p.replace(/\n/g, ' ').trim()}
+                  </p>
+                ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Export — passes cached AI text so no second API call */}
       {explainInput && forecast && (
         <ExportButton
           input={explainInput}
           forecast={forecast}
+          cachedAiText={resolvedAiText}
         />
       )}
 
