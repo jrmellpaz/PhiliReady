@@ -3,7 +3,11 @@ import { useCityDetail, useForecast, useMe, useUpdateCity } from '#/lib/queries'
 import { ForecastChart } from '#/components/forecast/ForecastChart'
 import { getDemandColor, getRiskLabel } from '#/lib/colors'
 import { SidebarSheet } from '#/components/ui/SilkSheets'
-import { Pencil, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react'
+import {
+  Pencil,
+  Wheat, Droplets, HeartPulse, ShowerHead,
+  Info,
+} from 'lucide-react'
 import type { HazardType, CityDetail } from '#/lib/types'
 import { ExportButton } from '#/components/export/ExportButton'
 import {
@@ -12,6 +16,8 @@ import {
   clearCachedExplanation,
 } from '#/lib/ai-explain'
 import type { ExplainInput } from '#/lib/ai-explain'
+import { FormulaSheet } from './FormulaSheet'
+import { AiAssessment } from './AiAssessment'
 
 interface Props {
   pcode: string
@@ -23,11 +29,31 @@ interface Props {
   simActive: boolean
 }
 
-const ITEMS = [
-  { key: 'rice', label: 'Rice', unit: 'kg', color: '#2B7DE9' },
-  { key: 'water', label: 'Water', unit: 'L', color: '#0EA47A' },
-  { key: 'meds', label: 'Med Kits', unit: 'units', color: '#D48B0A' },
-  { key: 'kits', label: 'Hygiene Kits', unit: 'units', color: '#D03050' },
+export const ITEMS = [
+  {
+    key: 'rice', label: 'Rice', unit: 'kg', color: '#2B7DE9',
+    Icon: Wheat,
+    sphereRate: '1.5 kg / displaced HH / day',
+    basis: 'Sphere Standard: 2,100 kcal/person/day (~500 g rice × ~3 persons needing food aid per HH)',
+  },
+  {
+    key: 'water', label: 'Water', unit: 'L', color: '#0EA47A',
+    Icon: Droplets,
+    sphereRate: '15 L / displaced HH / day',
+    basis: 'Sphere Standard: 15 L/person/day minimum for drinking, cooking, and hygiene',
+  },
+  {
+    key: 'meds', label: 'Med Kits', unit: 'units', color: '#D48B0A',
+    Icon: HeartPulse,
+    sphereRate: '0.08 kits / displaced HH / day',
+    basis: '~1 kit per 12 HH/day. Based on WHO Emergency Health Kit guidelines',
+  },
+  {
+    key: 'kits', label: 'Hygiene Kits', unit: 'units', color: '#D03050',
+    Icon: ShowerHead,
+    sphereRate: '0.07 kits / displaced HH / day',
+    basis: '~1 kit per 14 HH/day. Based on Sphere WASH standards',
+  },
 ] as const
 
 export function DetailPanel({
@@ -47,6 +73,7 @@ export function DetailPanel({
   )
   const { data: me } = useMe()
   const [editing, setEditing] = useState(false)
+  const [showFormula, setShowFormula] = useState(false)
 
   // ── AI assessment state ──────────────────────────────────────────
   const [aiText, setAiText]         = useState<string | null>(null)
@@ -171,14 +198,8 @@ export function DetailPanel({
 
       {/* Stats grid */}
       <div className="panel-stats-grid">
-        <Stat
-          label="Population"
-          value={city?.population.toLocaleString() ?? '—'}
-        />
-        <Stat
-          label="Households"
-          value={city?.households.toLocaleString() ?? '—'}
-        />
+        <Stat label="Population" value={city?.population.toLocaleString() ?? '—'} />
+        <Stat label="Households" value={city?.households.toLocaleString() ?? '—'} />
         <Stat
           label="Risk Score"
           value={`${((city?.riskScore ?? 0) * 100).toFixed(0)}%`}
@@ -220,15 +241,31 @@ export function DetailPanel({
 
       {/* Demand bars */}
       <div className="panel-demand-section">
-        <p className="panel-section-label">PEAK DEMAND ESTIMATE</p>
-        {ITEMS.map(({ key, label, unit, color }) => {
+        <div className="panel-demand-section-header">
+          <p className="panel-section-label" style={{ margin: 0 }}>PEAK DEMAND ESTIMATE</p>
+          <button
+            type="button"
+            className="panel-formula-btn"
+            onClick={() => setShowFormula(true)}
+            title="View formula"
+          >
+            <Info size={13} />
+          </button>
+        </div>
+
+        {ITEMS.map(({ key, label, unit, color, Icon }) => {
           const demand = city?.demand
           const val = demand ? demand[key] : 0
           const max = 20000
           return (
             <div key={key} className="panel-demand-item">
               <div className="panel-demand-header">
-                <span className="panel-demand-label">{label}</span>
+                <span className="panel-demand-label">
+                  <span className="panel-demand-icon" style={{ color }}>
+                    <Icon size={13} />
+                  </span>
+                  {label}
+                </span>
                 <span className="panel-demand-value" style={{ color }}>
                   {val.toLocaleString()} {unit}
                 </span>
@@ -245,96 +282,26 @@ export function DetailPanel({
             </div>
           )
         })}
+
+        {showFormula && <FormulaSheet onClose={() => setShowFormula(false)} />}
       </div>
 
       {/* Forecast chart */}
       <p className="panel-section-label">7-DAY FORECAST</p>
       {fxLoading ? <Spinner /> : forecast && <ForecastChart data={forecast} />}
 
-      {/* ── AI Assessment ─────────────────────────────────────────── */}
+      {/* AI Assessment */}
       {explainInput && (
-        <div className="panel-ai-section">
-          <div className="panel-ai-header">
-            <div>
-              <p className="panel-section-label" style={{ margin: 0 }}>
-                AI ASSESSMENT
-              </p>
-              {resolvedAiText && (() => {
-                const cached = getCachedExplanation(explainInput)
-                return cached ? (
-                  <p className="panel-ai-timestamp">
-                    Generated {new Date(cached.generatedAt).toLocaleDateString('en-US', {
-                      month: 'short', day: 'numeric', year: 'numeric',
-                    })}
-                  </p>
-                ) : null
-              })()}
-            </div>
-            <div className="panel-ai-header-actions">
-              {resolvedAiText && !aiLoading && (
-                <>
-                  <button
-                    type="button"
-                    className="panel-ai-icon-btn"
-                    onClick={handleRegenerateAI}
-                    title="Regenerate"
-                  >
-                    <RefreshCw size={12} />
-                  </button>
-                  <button
-                    type="button"
-                    className="panel-ai-icon-btn"
-                    onClick={() => setAiExpanded(v => !v)}
-                    title={aiExpanded ? 'Collapse' : 'Expand'}
-                  >
-                    {aiExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Skeleton while loading */}
-          {aiLoading && (
-            <div className="panel-ai-skeleton">
-              <div className="panel-ai-skeleton-line" style={{ width: '92%' }} />
-              <div className="panel-ai-skeleton-line" style={{ width: '85%' }} />
-              <div className="panel-ai-skeleton-line" style={{ width: '88%' }} />
-              <div className="panel-ai-skeleton-line" style={{ width: '40%' }} />
-              <div className="panel-ai-skeleton-gap" />
-              <div className="panel-ai-skeleton-line" style={{ width: '90%' }} />
-              <div className="panel-ai-skeleton-line" style={{ width: '82%' }} />
-              <div className="panel-ai-skeleton-line" style={{ width: '55%' }} />
-            </div>
-          )}
-
-          {/* Error with retry */}
-          {aiError && !aiLoading && (
-            <div className="panel-ai-error">
-              <p>{aiError}</p>
-              <button
-                type="button"
-                className="panel-ai-retry-btn"
-                onClick={handleGenerateAI}
-              >
-                Retry
-              </button>
-            </div>
-          )}
-
-          {/* Result */}
-          {resolvedAiText && !aiLoading && aiExpanded && (
-            <div className="panel-ai-body">
-              {resolvedAiText
-                .split(/\n{2,}/)
-                .map((p, i) => (
-                  <p key={i} className="panel-ai-paragraph">
-                    {p.replace(/\n/g, ' ').trim()}
-                  </p>
-                ))}
-            </div>
-          )}
-        </div>
+        <AiAssessment
+          explainInput={explainInput}
+          resolvedAiText={resolvedAiText}
+          aiLoading={aiLoading}
+          aiError={aiError}
+          aiExpanded={aiExpanded}
+          onRegenerate={handleRegenerateAI}
+          onRetry={handleGenerateAI}
+          onToggleExpand={() => setAiExpanded(v => !v)}
+        />
       )}
 
       {/* Audit trail */}
@@ -389,9 +356,7 @@ function EditCityForm({ pcode, city, onClose }: EditFormProps) {
       { pcode, body },
       {
         onSuccess: (data) => {
-          setMsg(
-            `Updated! New risk score: ${(data.riskScore * 100).toFixed(0)}%`,
-          )
+          setMsg(`Updated! New risk score: ${(data.riskScore * 100).toFixed(0)}%`)
           setMsgType('success')
         },
         onError: (err) => {
