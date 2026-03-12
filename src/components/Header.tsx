@@ -13,6 +13,7 @@ import {
   Menu,
   Sliders,
   User,
+  Bot
 } from 'lucide-react'
 import { BottomSheet } from '#/components/ui/SilkSheets'
 
@@ -118,6 +119,15 @@ function NavLinks({
         <FlaskConical size={14} />
         Simulate
       </button>
+
+      <button
+        className="navbar-link navbar-link-simulate"
+        onClick={() => onOpenSheet('assistant')}
+      >
+        <Bot size={14} />
+        Assistant
+      </button>
+
       <button className="navbar-link" onClick={() => onNavigate('simulator')}>
         <Sliders size={14} />
         What-If

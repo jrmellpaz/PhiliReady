@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback } from 'react'
 
-export type SheetName = 'simulate' | 'login' | 'admin' | 'prices'
+export type SheetName = 'simulate' | 'login' | 'admin' | 'prices' | 'assistant'
 
 interface SheetState {
   openSheet: SheetName | null

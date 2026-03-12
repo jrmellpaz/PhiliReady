@@ -98,6 +98,7 @@ interface ScrollableSheetProps {
   presented: boolean
   onClose: () => void
   tall?: boolean
+  swipeDismissal?: boolean
   children: React.ReactNode
 }
 
@@ -105,6 +106,7 @@ export function ScrollableSheet({
   presented,
   onClose,
   tall,
+  swipeDismissal = true,
   children,
 }: ScrollableSheetProps) {
   const viewRef = useRef<HTMLElement>(null)
@@ -136,7 +138,7 @@ export function ScrollableSheet({
           tracks={['top', 'bottom']}
           swipeOvershoot={false}
           nativeEdgeSwipePrevention
-          swipeDismissal
+          swipeDismissal={swipeDismissal}
           onTravel={travelHandler}
           ref={setRef}
         >

@@ -4,7 +4,7 @@ import { MapWrapper } from '../components/map/MapWrapper'
 import { DetailPanel } from '../components/map/DetailPanel'
 import { WeatherStrip } from '../components/weather/WeatherStrip'
 import { useSheetState } from '#/lib/sheet-state'
-import { DialogSheet, ScrollableSheet } from '#/components/ui/SilkSheets'
+import { DialogSheet, ScrollableSheet, BottomSheet } from '#/components/ui/SilkSheets'
 import { SimulateContent } from '#/components/simulator/SimulateContent'
 import { SimulatorContent } from '#/components/simulator/SimulatorContent'
 import { LoginContent } from '#/components/auth/LoginContent'
@@ -12,6 +12,7 @@ import { AdminContent } from '#/components/auth/AdminContent'
 import { PricesContent } from '#/components/auth/PricesContent'
 import Footer from '../components/Footer'
 import type { HazardType } from '#/lib/types'
+import { ChatBot } from '#/components/chat/ChatBot'
 
 interface DashboardSearch {
   sim?: string
@@ -89,6 +90,7 @@ function Dashboard() {
               </span>
             </div>
           )}
+          <ChatBot defaultCollapsed={true} context={{ simActive, hazard: simHazard, severity: simSeverity, selectedCity: selectedCity?.name }} />
         </div>
 
         {/* Mobile-only: floating legend */}
@@ -124,6 +126,10 @@ function Dashboard() {
       <ScrollableSheet presented={openSheet === 'simulate'} onClose={close}>
         <SimulateContent onActivate={handleSimActivate} />
       </ScrollableSheet>
+
+      <BottomSheet presented={openSheet === 'assistant'} onClose={close}>
+        <ChatBot context={{ simActive, hazard: simHazard, severity: simSeverity, selectedCity: selectedCity?.name }} />
+      </BottomSheet>
 
       {/* What-If Forecaster — tall scrollable sheet, URL-intercepted */}
       <ScrollableSheet

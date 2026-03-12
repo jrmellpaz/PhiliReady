@@ -3695,3 +3695,443 @@ body {
   line-height: 1.5;
   margin-top: 6px;
 }
+
+
+.lpa-card {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(30, 58, 95, 0.1);
+  box-shadow: 0 4px 20px rgba(30, 58, 95, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  /* Grows to fill available column space when expanded */
+  flex-shrink: 0;
+}
+ 
+/* ── Header (collapse toggle) ──────────────────────────────────────── */
+.lpa-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: background 120ms ease;
+  flex-shrink: 0;
+  /* Prevents header inheriting card overflow:hidden radius issues */
+  border-radius: 0;
+}
+ 
+.lpa-header:hover {
+  background: rgba(30, 58, 95, 0.04);
+}
+ 
+.lpa-header-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+ 
+.lpa-header-right {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+ 
+.lpa-header-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--pr-accent), #2c5282);
+  color: #fff;
+  flex-shrink: 0;
+}
+ 
+.lpa-header-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--pr-text-muted);
+  text-transform: uppercase;
+}
+ 
+/* Red pulse dot — visible when simulation is active */
+.lpa-sim-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--pr-danger);
+  flex-shrink: 0;
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+ 
+.lpa-chevron {
+  color: var(--pr-text-dim);
+}
+ 
+/* Trash button — only rendered when there are messages */
+.lpa-clear-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  color: var(--pr-text-dim);
+  transition: color 120ms, background 120ms;
+}
+ 
+.lpa-clear-btn:hover {
+  color: var(--pr-danger);
+  background: rgba(214, 56, 81, 0.08);
+}
+ 
+/* ── Body ──────────────────────────────────────────────────────────── */
+.lpa-body {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid rgba(30, 58, 95, 0.08);
+  min-height: 0;
+}
+ 
+/* ── Context awareness pill ────────────────────────────────────────── */
+.lpa-ctx-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 14px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--pr-danger);
+  background: rgba(214, 56, 81, 0.05);
+  border-bottom: 1px solid rgba(214, 56, 81, 0.08);
+  flex-shrink: 0;
+}
+ 
+.lpa-ctx-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--pr-danger);
+  flex-shrink: 0;
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+ 
+/* ── Message scroll area ───────────────────────────────────────────── */
+.lpa-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scroll-behavior: smooth;
+  min-height: 140px;
+  max-height: 280px;
+}
+ 
+.lpa-messages::-webkit-scrollbar       { width: 3px; }
+.lpa-messages::-webkit-scrollbar-track { background: transparent; }
+.lpa-messages::-webkit-scrollbar-thumb {
+  background: var(--pr-border);
+  border-radius: 3px;
+}
+ 
+/* ── Empty / welcome ───────────────────────────────────────────────── */
+.lpa-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 2px;
+  text-align: center;
+}
+ 
+.lpa-empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--pr-accent-glow);
+  color: var(--pr-accent);
+}
+ 
+.lpa-empty-text {
+  font-size: 11px;
+  color: var(--pr-text-muted);
+  line-height: 1.5;
+  margin: 0;
+  max-width: 210px;
+}
+ 
+/* Starter chips */
+.lpa-starters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  justify-content: center;
+}
+ 
+.lpa-starter {
+  padding: 3px 10px;
+  border-radius: 99px;
+  border: 1px solid var(--pr-border);
+  background: var(--pr-surface-elevated);
+  color: var(--pr-text-muted);
+  font-size: 10px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 130ms ease;
+  white-space: nowrap;
+}
+ 
+.lpa-starter:hover {
+  border-color: var(--pr-accent);
+  color: var(--pr-accent);
+  background: var(--pr-accent-glow);
+}
+ 
+/* ── Chat bubbles ──────────────────────────────────────────────────── */
+.lpa-bubble {
+  display: flex;
+  gap: 5px;
+  animation: lpa-in 150ms ease both;
+}
+ 
+@keyframes lpa-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+ 
+.lpa-bubble--user {
+  flex-direction: row-reverse;
+}
+ 
+.lpa-bubble-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
+  background: var(--pr-accent-glow);
+  color: var(--pr-accent);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+ 
+.lpa-bubble-body {
+  max-width: calc(100% - 24px);
+  padding: 7px 10px;
+  border-radius: 9px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+ 
+.lpa-bubble--user .lpa-bubble-body {
+  background: linear-gradient(135deg, var(--pr-accent), #2c5282);
+  color: #fff;
+  border-bottom-right-radius: 2px;
+}
+ 
+.lpa-bubble--assistant .lpa-bubble-body {
+  background: rgba(30, 58, 95, 0.06);
+  color: var(--pr-text);
+  border: 1px solid rgba(30, 58, 95, 0.08);
+  border-bottom-left-radius: 2px;
+}
+ 
+/* Paragraph / list resets inside bubbles */
+.lpa-para { margin: 0 0 4px; }
+.lpa-para:last-child { margin: 0; }
+ 
+.lpa-ol {
+  margin: 0 0 4px;
+  padding-left: 16px;
+  list-style-type: decimal;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+ 
+.lpa-ul {
+  margin: 0 0 4px;
+  padding-left: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+ 
+.lpa-li { font-size: 12px; line-height: 1.55; display: list-item; }
+.lpa-ul .lpa-li { display: flex; gap: 5px; }
+ 
+.lpa-bullet {
+  flex-shrink: 0;
+  color: var(--pr-accent);
+  font-weight: 700;
+}
+ 
+/* Blinking cursor while streaming */
+.lpa-cursor {
+  display: inline-block;
+  width: 1.5px;
+  height: 11px;
+  background: currentColor;
+  opacity: 0.65;
+  margin-left: 2px;
+  vertical-align: middle;
+  animation: lpa-blink 0.8s steps(1) infinite;
+}
+ 
+@keyframes lpa-blink {
+  0%, 100% { opacity: 0.65; }
+  50%       { opacity: 0; }
+}
+ 
+/* ── Error ─────────────────────────────────────────────────────────── */
+.lpa-error {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--pr-danger);
+  animation: lpa-in 150ms ease both;
+}
+ 
+.lpa-retry {
+  background: none;
+  border: 1px solid var(--pr-danger);
+  color: var(--pr-danger);
+  border-radius: 5px;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 100ms;
+}
+ 
+.lpa-retry:hover { background: rgba(214, 56, 81, 0.08); }
+ 
+/* ── Input row ─────────────────────────────────────────────────────── */
+.lpa-input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 8px 12px 10px;
+  border-top: 1px solid rgba(30, 58, 95, 0.08);
+  flex-shrink: 0;
+}
+ 
+.lpa-input {
+  flex: 1;
+  resize: none;
+  overflow-y: hidden;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--pr-border);
+  background: var(--pr-surface-elevated);
+  color: var(--pr-text);
+  font-size: 12px;
+  font-family: inherit;
+  line-height: 1.5;
+  outline: none;
+  min-height: 32px;
+  transition: border-color 130ms ease, box-shadow 130ms ease;
+}
+ 
+.lpa-input:focus {
+  border-color: var(--pr-accent);
+  box-shadow: 0 0 0 2px var(--pr-accent-glow);
+}
+ 
+.lpa-input::placeholder { color: var(--pr-text-dim); }
+.lpa-input:disabled     { opacity: 0.5; }
+ 
+.lpa-send {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 7px;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--pr-accent), #2c5282);
+  color: #fff;
+  transition: opacity 120ms, transform 120ms;
+}
+ 
+.lpa-send:not(:disabled):hover {
+  opacity: 0.88;
+  transform: translateY(-1px);
+}
+ 
+.lpa-send:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  transform: none;
+}
+ 
+/* ── Mobile sheet page wrapper ─────────────────────────────────────── */
+/* When rendered as its own mobile sheet page, give it some breathing room */
+.assistant-page {
+  padding: 20px 20px 32px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+}
+ 
+.assistant-page-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--pr-text);
+  margin: 0 0 4px;
+}
+ 
+.assistant-page-subtitle {
+  font-size: 13px;
+  color: var(--pr-text-muted);
+  margin: 0 0 16px;
+}
+ 
+/* In mobile page context the card fills available height */
+.assistant-page .lpa-card {
+  flex: 1;
+  min-height: 0;
+  /* No backdrop needed inside sheet */
+  background: var(--pr-surface-elevated);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+  border-color: var(--pr-border);
+}
+ 
+.assistant-page .lpa-messages {
+  /* Allow it to flex-grow in the sheet */
+  max-height: none;
+  flex: 1;
+}
+ 
+.leaflet-top.leaflet-left .leaflet-control-zoom,
+.leaflet-bottom.leaflet-left .leaflet-control-zoom {
+  display: none;
+}
