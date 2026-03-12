@@ -1,71 +1,128 @@
-import { RefreshCw, ChevronDown, ChevronUp } from 'lucide-react'
-import { getCachedExplanation } from '#/lib/ai-explain'
+// AiAssessment.tsx
+import { useEffect, useRef, useState } from 'react'
+import { ChevronDown, ChevronUp, RefreshCw } from 'lucide-react'
 import type { ExplainInput } from '#/lib/ai-explain'
+
+const API_BASE =
+  (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000'
+
+type Status = 'idle' | 'loading' | 'streaming' | 'done' | 'error'
 
 interface Props {
   explainInput: ExplainInput
-  resolvedAiText: string | null
-  aiLoading: boolean
-  aiError: string | null
-  aiExpanded: boolean
-  onRegenerate: () => void
-  onRetry: () => void
-  onToggleExpand: () => void
+  onTextReady?: (text: string) => void
+  regenKey?: number
 }
 
-export function AiAssessment({
-  explainInput,
-  resolvedAiText,
-  aiLoading,
-  aiError,
-  aiExpanded,
-  onRegenerate,
-  onRetry,
-  onToggleExpand,
-}: Props) {
-  const cached = resolvedAiText ? getCachedExplanation(explainInput) : null
+export function AiAssessment({ explainInput, onTextReady, regenKey = 0 }: Props) {
+  const [status, setStatus]           = useState<Status>('idle')
+  const [completion, setCompletion]   = useState('')
+  const [error, setError]             = useState<string | null>(null)
+  const [expanded, setExpanded]       = useState(true)
+  const [generatedAt, setGeneratedAt] = useState<string | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
+
+  const runCompletion = async (force = false) => {
+    abortRef.current?.abort()
+    abortRef.current = new AbortController()
+
+    // Reset everything in one go before the async work starts
+    setStatus('loading')
+    setCompletion('')
+    setGeneratedAt(null)
+    setError(null)
+
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/explain`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...explainInput, force }),
+        signal: abortRef.current.signal,
+      })
+
+      if (!res.ok) throw new Error(`API error ${res.status}`)
+      if (!res.body) throw new Error('No response body')
+
+      const reader  = res.body.getReader()
+      const decoder = new TextDecoder()
+      let fullText  = ''
+      let firstChunk = true
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const lines = decoder.decode(value, { stream: true }).split('\n')
+        for (const line of lines) {
+          if (!line.startsWith('0:')) continue
+          try {
+            const chunk = JSON.parse(line.slice(2)) as string
+            if (chunk) {
+              if (firstChunk) {
+                setStatus('streaming')  // ← skeleton hides, text appears
+                firstChunk = false
+              }
+              fullText += chunk
+              setCompletion(prev => prev + chunk)
+            }
+          } catch { /* skip malformed */ }
+        }
+      }
+
+      setStatus('done')
+      setGeneratedAt(new Date().toISOString())
+      onTextReady?.(fullText)
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return
+      setStatus('error')
+      setError(err instanceof Error ? err.message : 'Failed to generate assessment.')
+    }
+  }
+
+  useEffect(() => {
+    runCompletion()
+    return () => abortRef.current?.abort()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [explainInput.pcode, explainInput.hazard, explainInput.severity, explainInput.simActive])
+
+  useEffect(() => {
+    if (regenKey === 0) return
+    runCompletion(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [regenKey])
+
+  const handleRegenerate = () => runCompletion(true)
 
   return (
     <div className="panel-ai-section">
       <div className="panel-ai-header">
         <div>
-          <p className="panel-section-label" style={{ margin: 0 }}>
-            AI ASSESSMENT
-          </p>
-          {cached && (
+          <p className="panel-section-label" style={{ margin: 0 }}>AI ASSESSMENT</p>
+          {generatedAt && status === 'done' && (
             <p className="panel-ai-timestamp">
-              Generated {new Date(cached.generatedAt).toLocaleDateString('en-US', {
+              Generated{' '}
+              {new Date(generatedAt).toLocaleDateString('en-US', {
                 month: 'short', day: 'numeric', year: 'numeric',
               })}
             </p>
           )}
         </div>
         <div className="panel-ai-header-actions">
-          {resolvedAiText && !aiLoading && (
+          {completion && status !== 'loading' && (
             <>
-              <button
-                type="button"
-                className="panel-ai-icon-btn"
-                onClick={onRegenerate}
-                title="Regenerate"
-              >
+              <button type="button" className="panel-ai-icon-btn" onClick={handleRegenerate} title="Regenerate">
                 <RefreshCw size={12} />
               </button>
-              <button
-                type="button"
-                className="panel-ai-icon-btn"
-                onClick={onToggleExpand}
-                title={aiExpanded ? 'Collapse' : 'Expand'}
-              >
-                {aiExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+              <button type="button" className="panel-ai-icon-btn" onClick={() => setExpanded(v => !v)} title={expanded ? 'Collapse' : 'Expand'}>
+                {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
               </button>
             </>
           )}
         </div>
       </div>
 
-      {/* Skeleton while loading */}
-      {aiLoading && (
+      {/* Skeleton — only while status is 'loading', i.e. before first chunk */}
+      {status === 'loading' && (
         <div className="panel-ai-skeleton">
           <div className="panel-ai-skeleton-line" style={{ width: '92%' }} />
           <div className="panel-ai-skeleton-line" style={{ width: '85%' }} />
@@ -78,28 +135,23 @@ export function AiAssessment({
         </div>
       )}
 
-      {/* Error with retry */}
-      {aiError && !aiLoading && (
+      {status === 'error' && (
         <div className="panel-ai-error">
-          <p>{aiError}</p>
-          <button
-            type="button"
-            className="panel-ai-retry-btn"
-            onClick={onRetry}
-          >
+          <p>{error}</p>
+          <button type="button" className="panel-ai-retry-btn" onClick={handleRegenerate}>
             Retry
           </button>
         </div>
       )}
 
-      {/* Result */}
-      {resolvedAiText && !aiLoading && aiExpanded && (
+      {completion && expanded && (
         <div className="panel-ai-body">
-          {resolvedAiText
+          {completion
             .split(/\n{2,}/)
-            .map((p, i) => (
+            .filter(Boolean)
+            .map((para, i) => (
               <p key={i} className="panel-ai-paragraph">
-                {p.replace(/\n/g, ' ').trim()}
+                {para.replace(/\n/g, ' ').trim()}
               </p>
             ))}
         </div>

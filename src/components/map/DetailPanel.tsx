@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useCityDetail, useForecast, useMe, useUpdateCity } from '#/lib/queries'
 import { ForecastChart } from '#/components/forecast/ForecastChart'
 import { getDemandColor, getRiskLabel } from '#/lib/colors'
@@ -9,13 +9,8 @@ import {
   Info,
 } from 'lucide-react'
 import type { HazardType, CityDetail } from '#/lib/types'
-import { ExportButton } from '#/components/export/ExportButton'
-import {
-  generateExplanation,
-  getCachedExplanation,
-  clearCachedExplanation,
-} from '#/lib/ai-explain'
 import type { ExplainInput } from '#/lib/ai-explain'
+import { ExportButton } from '#/components/export/ExportButton'
 import { FormulaSheet } from './FormulaSheet'
 import { AiAssessment } from './AiAssessment'
 
@@ -72,20 +67,20 @@ export function DetailPanel({
     simActive ? severity : undefined,
   )
   const { data: me } = useMe()
-  const [editing, setEditing] = useState(false)
-  const [showFormula, setShowFormula] = useState(false)
+  const [editing, setEditing]           = useState(false)
+  const [showFormula, setShowFormula]   = useState(false)
+  const [regenKey, setRegenKey]         = useState(0)
+  const [pendingRegen, setPendingRegen] = useState(false)
+  const [exportAiText, setExportAiText] = useState<string | null>(null)
 
-  // ── AI assessment state ──────────────────────────────────────────
-  const [aiText, setAiText]         = useState<string | null>(null)
-  const [aiLoading, setAiLoading]   = useState(false)
-  const [aiError, setAiError]       = useState<string | null>(null)
-  const [aiExpanded, setAiExpanded] = useState(true)
+  // Snapshot of updatedAt BEFORE the save — lives in DetailPanel, not EditCityForm
+  const prevUpdatedAtRef = useRef<string | null | undefined>(undefined)
 
-  // Derive explainInput early (may be null while data loads)
   const totalWeekCost = forecast?.reduce((sum, d) => sum + d.totalCost, 0) ?? 0
 
   const explainInput: ExplainInput | null = city && forecast
     ? {
+        pcode,
         cityName: name,
         province: city.province,
         region: city.region,
@@ -104,48 +99,15 @@ export function DetailPanel({
       }
     : null
 
-  // Resolve which text to use: local state > cache > null
-  const resolvedAiText = aiText
-    ?? (explainInput ? getCachedExplanation(explainInput)?.text ?? null : null)
-
-  const handleGenerateAI = async () => {
-    if (!explainInput) return
-    setAiLoading(true)
-    setAiError(null)
-    try {
-      const result = await generateExplanation(explainInput)
-      setAiText(result.text)
-      setAiExpanded(true)
-    } catch (err) {
-      setAiError(err instanceof Error ? err.message : 'Failed to generate assessment.')
-    } finally {
-      setAiLoading(false)
-    }
-  }
-
-  const handleRegenerateAI = async () => {
-    if (!explainInput) return
-    // Bust the cache for this city so a fresh call is made
-    clearCachedExplanation(explainInput)
-    setAiText(null)
-    await handleGenerateAI()
-  }
-
-  // Reset local AI state whenever the city or active scenario changes.
+  // Wait for React Query to refetch fresh city data, THEN trigger regen
   useEffect(() => {
-    setAiText(null)
-    setAiError(null)
-    setAiLoading(false)
-    setAiExpanded(true)
-  }, [pcode, hazard, severity, simActive])
-
-  // Auto-generate when city data + forecast are ready, unless already cached.
-  useEffect(() => {
-    if (!explainInput) return
-    if (resolvedAiText) return
-    handleGenerateAI()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [explainInput])
+    if (!pendingRegen) return
+    if (!city) return
+    // city.updatedAt must have changed — means the refetch returned new data
+    if (city.updatedAt === prevUpdatedAtRef.current) return
+    setPendingRegen(false)
+    setRegenKey(k => k + 1)
+  }, [city, pendingRegen])
 
   if (cityLoading)
     return (
@@ -165,7 +127,7 @@ export function DetailPanel({
             <ExportButton
               input={explainInput}
               forecast={forecast}
-              cachedAiText={resolvedAiText}
+              cachedAiText={exportAiText}
             />
           </div>
         ) : undefined
@@ -230,11 +192,12 @@ export function DetailPanel({
         <EditCityForm
           pcode={pcode}
           city={city}
-          onClose={() => {
-            setEditing(false)
-            // Bust AI cache when data changes so next generation is fresh
-            if (explainInput) clearCachedExplanation(explainInput)
-            setAiText(null)
+          onClose={() => setEditing(false)}
+          onSaved={() => {
+            // Snapshot CURRENT updatedAt before refetch overwrites it
+            prevUpdatedAtRef.current = city.updatedAt
+            setExportAiText(null)
+            setPendingRegen(true)
           }}
         />
       )}
@@ -294,13 +257,8 @@ export function DetailPanel({
       {explainInput && (
         <AiAssessment
           explainInput={explainInput}
-          resolvedAiText={resolvedAiText}
-          aiLoading={aiLoading}
-          aiError={aiError}
-          aiExpanded={aiExpanded}
-          onRegenerate={handleRegenerateAI}
-          onRetry={handleGenerateAI}
-          onToggleExpand={() => setAiExpanded(v => !v)}
+          onTextReady={setExportAiText}
+          regenKey={regenKey}
         />
       )}
 
@@ -322,9 +280,10 @@ interface EditFormProps {
   pcode: string
   city: CityDetail
   onClose: () => void
+  onSaved: () => void
 }
 
-function EditCityForm({ pcode, city, onClose }: EditFormProps) {
+function EditCityForm({ pcode, city, onClose, onSaved }: EditFormProps) {
   const mutation = useUpdateCity()
   const [msg, setMsg] = useState<string | null>(null)
   const [msgType, setMsgType] = useState<'success' | 'error'>('success')
@@ -358,6 +317,7 @@ function EditCityForm({ pcode, city, onClose }: EditFormProps) {
         onSuccess: (data) => {
           setMsg(`Updated! New risk score: ${(data.riskScore * 100).toFixed(0)}%`)
           setMsgType('success')
+          onSaved()
         },
         onError: (err) => {
           setMsg(err instanceof Error ? err.message : 'Failed to update.')

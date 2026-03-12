@@ -1,26 +1,57 @@
 /**
  * ExportButton.tsx
- * If cachedAiText is provided (e.g. already shown in DetailPanel),
- * the API is NOT called again — the cached text goes straight into the PDF.
+ * Exports a PDF report for a city assessment.
+ *
+ * If cachedAiText is provided (streamed in by AiAssessment via onTextReady),
+ * no API call is made — the text goes straight into the PDF builder.
+ *
+ * If cachedAiText is null (user clicks export before stream finishes),
+ * it fetches the assessment from the backend directly.
  */
 
 import { useState } from 'react'
 import { FileDown, Loader2 } from 'lucide-react'
-import { generateExplanation } from '#/lib/ai-explain'
 import { buildReportPDF, reportFileName } from '#/components/export/pdfBuilder'
 import type { ExplainInput } from '#/lib/ai-explain'
 import type { ForecastPoint } from '#/lib/types'
 
+const API_BASE =
+  (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000'
+
 interface ExportButtonProps {
   input: ExplainInput
   forecast: ForecastPoint[]
-  /** If provided, skips the API call entirely and uses this text in the PDF */
+  /** Text already streamed in by AiAssessment — skips the API call if present */
   cachedAiText?: string | null
   label?: string
   className?: string
 }
 
 type Stage = 'idle' | 'ai' | 'pdf' | 'error'
+
+/** Fetch the full assessment text from the backend */
+async function fetchAssessmentText(input: ExplainInput): Promise<string> {
+  const res = await fetch(`${API_BASE}/api/v1/explain`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+
+  if (!res.ok) throw new Error(`Assessment API error ${res.status}`)
+
+  // Collect all text chunks from the data-stream (lines starting with 0:)
+  const raw = await res.text()
+  const text = raw
+    .split('\n')
+    .filter(line => line.startsWith('0:'))
+    .map(line => {
+      try { return JSON.parse(line.slice(2)) as string }
+      catch { return '' }
+    })
+    .join('')
+
+  return text || 'No assessment could be generated.'
+}
 
 export function ExportButton({
   input,
@@ -37,9 +68,7 @@ export function ExportButton({
     setErrMsg(null)
 
     try {
-      // Use cached text if available — no API call
-      const aiText = cachedAiText
-        ?? (await generateExplanation(input)).text
+      const aiText = cachedAiText ?? await fetchAssessmentText(input)
 
       setStage('pdf')
       const doc = buildReportPDF(input, forecast, aiText)
@@ -69,7 +98,7 @@ export function ExportButton({
       >
         {busy
           ? <Loader2 size={14} className="export-btn-spin" />
-          : <><FileDown size={14} /></>
+          : <FileDown size={14} />
         }
         {stageLabel && <span className="export-btn-label">{stageLabel}</span>}
       </button>
