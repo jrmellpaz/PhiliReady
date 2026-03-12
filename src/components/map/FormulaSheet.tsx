@@ -115,6 +115,7 @@ export function FormulaSheet({ onClose }: Props) {
               ['WASH', 'Water, Sanitation, and Hygiene — Sphere WASH standards define hygiene kit allocation'],
               ['WHO', 'World Health Organization — source for Emergency Health Kit guidelines'],
               ['PSGC', 'Philippine Standard Geographic Code — canonical city/municipality identifiers'],
+              ['LGU', 'Local Government Unit — cities/municipalities/provinces responsible for disaster response on the ground'],
             //   ['OTC', 'Over-the-Counter — medications included in basic medicine kits'],
             ] as [string, string][]).map(([term, def]) => (
               <div key={term} className="panel-formula-glossary-item">

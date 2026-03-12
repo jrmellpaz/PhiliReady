@@ -4135,3 +4135,8 @@ body {
 .leaflet-bottom.leaflet-left .leaflet-control-zoom {
   display: none;
 }
+
+.leaflet-bottom.leaflet-right {
+  right: 16px;
+  bottom: 16px;
+}
