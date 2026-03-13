@@ -3,7 +3,6 @@ import { useNavigate } from '@tanstack/react-router'
 import { useMe } from '#/lib/queries'
 import { clearToken, getToken } from '#/lib/auth'
 import { useSheetState } from '#/lib/sheet-state'
-import type { SheetName } from '#/lib/sheet-state'
 import {
   FlaskConical,
   Shield,
@@ -13,6 +12,7 @@ import {
   Menu,
   Sliders,
   User,
+  Bot
 } from 'lucide-react'
 import { BottomSheet } from '#/components/ui/SilkSheets'
 
@@ -106,7 +106,7 @@ function NavLinks({
   token: boolean
   isMobile?: boolean
   onLogout: () => void
-  onOpenSheet: (name: SheetName) => void
+  onOpenSheet: (name: string) => void
   onNavigate: (modal: string) => void
 }) {
   return (
@@ -118,6 +118,15 @@ function NavLinks({
         <FlaskConical size={14} />
         Simulate
       </button>
+
+      <button
+        className="navbar-link navbar-link-simulate"
+        onClick={() => onOpenSheet('assistant')}
+      >
+        <Bot size={14} />
+        Assistant
+      </button>
+
       <button className="navbar-link" onClick={() => onNavigate('simulator')}>
         <Sliders size={14} />
         What-If

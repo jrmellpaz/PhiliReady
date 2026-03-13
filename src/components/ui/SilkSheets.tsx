@@ -63,9 +63,10 @@ interface PageSheetProps {
   presented: boolean
   onClose: () => void
   children: React.ReactNode
+  swipeDismissal?: boolean
 }
 
-export function PageSheet({ presented, onClose, children }: PageSheetProps) {
+export function PageSheet({ presented, onClose, children, swipeDismissal = true }: PageSheetProps) {
   return (
     <Sheet.Root
       license="non-commercial"
@@ -77,7 +78,7 @@ export function PageSheet({ presented, onClose, children }: PageSheetProps) {
           className="silk-sheet-view silk-page-view"
           contentPlacement="bottom"
           nativeEdgeSwipePrevention
-          swipeDismissal
+          swipeDismissal={swipeDismissal}
         >
           <Sheet.Backdrop className="silk-backdrop" themeColorDimming="auto" />
           <Sheet.Content className="silk-page-content">
@@ -98,6 +99,7 @@ interface ScrollableSheetProps {
   presented: boolean
   onClose: () => void
   tall?: boolean
+  swipeDismissal?: boolean
   children: React.ReactNode
 }
 
@@ -105,6 +107,7 @@ export function ScrollableSheet({
   presented,
   onClose,
   tall,
+  swipeDismissal = true,
   children,
 }: ScrollableSheetProps) {
   const viewRef = useRef<HTMLElement>(null)
@@ -136,7 +139,7 @@ export function ScrollableSheet({
           tracks={['top', 'bottom']}
           swipeOvershoot={false}
           nativeEdgeSwipePrevention
-          swipeDismissal
+          swipeDismissal={swipeDismissal}
           onTravel={travelHandler}
           ref={setRef}
         >

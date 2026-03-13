@@ -1,10 +1,19 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useCityDetail, useForecast, useMe, useUpdateCity } from '#/lib/queries'
 import { ForecastChart } from '#/components/forecast/ForecastChart'
 import { getDemandColor, getRiskLabel } from '#/lib/colors'
 import { SidebarSheet } from '#/components/ui/SilkSheets'
-import { Pencil } from 'lucide-react'
+import { useSheetState } from '#/lib/sheet-state'
+import {
+  Pencil,
+  Wheat, Droplets, HeartPulse, ShowerHead,
+  Info,
+} from 'lucide-react'
 import type { HazardType, CityDetail } from '#/lib/types'
+import type { ExplainInput } from '#/lib/ai-explain'
+import { ExportButton } from '#/components/export/ExportButton'
+import { FormulaSheet } from './FormulaSheet'
+import { AiAssessment } from './AiAssessment'
 
 interface Props {
   pcode: string
@@ -16,11 +25,31 @@ interface Props {
   simActive: boolean
 }
 
-const ITEMS = [
-  { key: 'rice', label: 'Rice', unit: 'kg', color: '#2B7DE9' },
-  { key: 'water', label: 'Water', unit: 'L', color: '#0EA47A' },
-  { key: 'meds', label: 'Med Kits', unit: 'units', color: '#D48B0A' },
-  { key: 'kits', label: 'Hygiene Kits', unit: 'units', color: '#D03050' },
+export const ITEMS = [
+  {
+    key: 'rice', label: 'Rice', unit: 'kg', color: '#2B7DE9',
+    Icon: Wheat,
+    sphereRate: '1.5 kg / displaced HH / day',
+    basis: 'Sphere Standard: 2,100 kcal/person/day (~500 g rice × ~3 persons needing food aid per HH)',
+  },
+  {
+    key: 'water', label: 'Water', unit: 'L', color: '#0EA47A',
+    Icon: Droplets,
+    sphereRate: '15 L / displaced HH / day',
+    basis: 'Sphere Standard: 15 L/person/day minimum for drinking, cooking, and hygiene',
+  },
+  {
+    key: 'meds', label: 'Med Kits', unit: 'units', color: '#D48B0A',
+    Icon: HeartPulse,
+    sphereRate: '0.08 kits / displaced HH / day',
+    basis: '~1 kit per 12 HH/day. Based on WHO Emergency Health Kit guidelines',
+  },
+  {
+    key: 'kits', label: 'Hygiene Kits', unit: 'units', color: '#D03050',
+    Icon: ShowerHead,
+    sphereRate: '0.07 kits / displaced HH / day',
+    basis: '~1 kit per 14 HH/day. Based on Sphere WASH standards',
+  },
 ] as const
 
 export function DetailPanel({
@@ -39,7 +68,47 @@ export function DetailPanel({
     simActive ? severity : undefined,
   )
   const { data: me } = useMe()
-  const [editing, setEditing] = useState(false)
+  const { open } = useSheetState()
+  const [editing, setEditing]           = useState(false)
+  const [regenKey, setRegenKey]         = useState(0)
+  const [pendingRegen, setPendingRegen] = useState(false)
+  const [exportAiText, setExportAiText] = useState<string | null>(null)
+
+  // Snapshot of updatedAt BEFORE the save — lives in DetailPanel, not EditCityForm
+  const prevUpdatedAtRef = useRef<string | null | undefined>(undefined)
+
+  const totalWeekCost = forecast?.reduce((sum, d) => sum + d.totalCost, 0) ?? 0
+
+  const explainInput: ExplainInput | null = city && forecast
+    ? {
+        pcode,
+        cityName: name,
+        province: city.province,
+        region: city.region,
+        population: city.population,
+        households: city.households,
+        povertyPct: city.povertyPct,
+        isCoastal: !!city.isCoastal,
+        floodZone: city.floodZone,
+        eqZone: city.eqZone,
+        riskScore: city.riskScore,
+        demand: city.demand,
+        totalWeekCost,
+        simActive,
+        hazard,
+        severity,
+      }
+    : null
+
+  // Wait for React Query to refetch fresh city data, THEN trigger regen
+  useEffect(() => {
+    if (!pendingRegen) return
+    if (!city) return
+    // city.updatedAt must have changed — means the refetch returned new data
+    if (city.updatedAt === prevUpdatedAtRef.current) return
+    setPendingRegen(false)
+    setRegenKey(k => k + 1)
+  }, [city, pendingRegen])
 
   if (cityLoading)
     return (
@@ -48,10 +117,23 @@ export function DetailPanel({
       </PanelShell>
     )
 
-  const totalWeekCost = forecast?.reduce((sum, d) => sum + d.totalCost, 0) ?? 0
-
   return (
-    <PanelShell name={name} presented={presented} onClose={onClose}>
+    <PanelShell
+      name={name}
+      presented={presented}
+      onClose={onClose}
+      absoluteAction={
+        explainInput && forecast ? (
+          <div className="panel-export-abs">
+            <ExportButton
+              input={explainInput}
+              forecast={forecast}
+              cachedAiText={exportAiText}
+            />
+          </div>
+        ) : undefined
+      }
+    >
       {/* Location + Risk badge */}
       <div className="panel-location">
         <span className="panel-location-text">
@@ -79,14 +161,8 @@ export function DetailPanel({
 
       {/* Stats grid */}
       <div className="panel-stats-grid">
-        <Stat
-          label="Population"
-          value={city?.population.toLocaleString() ?? '—'}
-        />
-        <Stat
-          label="Households"
-          value={city?.households.toLocaleString() ?? '—'}
-        />
+        <Stat label="Population" value={city?.population.toLocaleString() ?? '—'} />
+        <Stat label="Households" value={city?.households.toLocaleString() ?? '—'} />
         <Stat
           label="Risk Score"
           value={`${((city?.riskScore ?? 0) * 100).toFixed(0)}%`}
@@ -94,7 +170,10 @@ export function DetailPanel({
         />
         <Stat
           label="7-Day Cost"
-          value={`₱${totalWeekCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          value={`₱${totalWeekCost.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}`}
           color="#D48B0A"
         />
       </div>
@@ -115,20 +194,45 @@ export function DetailPanel({
           pcode={pcode}
           city={city}
           onClose={() => setEditing(false)}
+          onSaved={() => {
+            // Snapshot CURRENT updatedAt before refetch overwrites it
+            prevUpdatedAtRef.current = city.updatedAt
+            setExportAiText(null)
+            setPendingRegen(true)
+          }}
         />
       )}
 
       {/* Demand bars */}
       <div className="panel-demand-section">
-        <p className="panel-section-label">PEAK DEMAND ESTIMATE</p>
-        {ITEMS.map(({ key, label, unit, color }) => {
+        <div className="panel-demand-section-header">
+          <p className="panel-section-label" style={{ margin: 0 }}>PEAK DEMAND ESTIMATE</p>
+          <div
+            className="panel-formula-btn"
+            onClick={(e) => {
+              e.stopPropagation()
+              open('formula')
+            }}
+            title="View formula"
+            style={{ cursor: 'pointer' }}
+          >
+            <Info size={13} />
+          </div>
+        </div>
+
+        {ITEMS.map(({ key, label, unit, color, Icon }) => {
           const demand = city?.demand
           const val = demand ? demand[key] : 0
           const max = 20000
           return (
             <div key={key} className="panel-demand-item">
               <div className="panel-demand-header">
-                <span className="panel-demand-label">{label}</span>
+                <span className="panel-demand-label">
+                  <span className="panel-demand-icon" style={{ color }}>
+                    <Icon size={13} />
+                  </span>
+                  {label}
+                </span>
                 <span className="panel-demand-value" style={{ color }}>
                   {val.toLocaleString()} {unit}
                 </span>
@@ -151,6 +255,15 @@ export function DetailPanel({
       <p className="panel-section-label">7-DAY FORECAST</p>
       {fxLoading ? <Spinner /> : forecast && <ForecastChart data={forecast} />}
 
+      {/* AI Assessment */}
+      {explainInput && (
+        <AiAssessment
+          explainInput={explainInput}
+          onTextReady={setExportAiText}
+          regenKey={regenKey}
+        />
+      )}
+
       {/* Audit trail */}
       {city?.updatedBy && (
         <p className="panel-audit">
@@ -169,9 +282,10 @@ interface EditFormProps {
   pcode: string
   city: CityDetail
   onClose: () => void
+  onSaved: () => void
 }
 
-function EditCityForm({ pcode, city, onClose }: EditFormProps) {
+function EditCityForm({ pcode, city, onClose, onSaved }: EditFormProps) {
   const mutation = useUpdateCity()
   const [msg, setMsg] = useState<string | null>(null)
   const [msgType, setMsgType] = useState<'success' | 'error'>('success')
@@ -203,10 +317,9 @@ function EditCityForm({ pcode, city, onClose }: EditFormProps) {
       { pcode, body },
       {
         onSuccess: (data) => {
-          setMsg(
-            `Updated! New risk score: ${(data.riskScore * 100).toFixed(0)}%`,
-          )
+          setMsg(`Updated! New risk score: ${(data.riskScore * 100).toFixed(0)}%`)
           setMsgType('success')
+          onSaved()
         },
         onError: (err) => {
           setMsg(err instanceof Error ? err.message : 'Failed to update.')
@@ -334,16 +447,20 @@ function PanelShell({
   name,
   presented,
   onClose,
+  absoluteAction,
   children,
 }: {
   name: string
   presented: boolean
   onClose: () => void
+  absoluteAction?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
     <SidebarSheet presented={presented} onClose={onClose}>
       <div className="detail-panel">
+        {/* Sits in the same stacking context as SilkSheets' close btn */}
+        {absoluteAction}
         <div className="panel-header">
           <h2 className="panel-title">{name}</h2>
         </div>

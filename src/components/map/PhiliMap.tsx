@@ -1,6 +1,6 @@
 // ⚠️ CLIENT-ONLY — never import directly, use MapWrapper
 import { useEffect, useRef, useState } from 'react'
-import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet'
+import { MapContainer, TileLayer, GeoJSON, ZoomControl } from 'react-leaflet'
 import type { Feature, FeatureCollection } from 'geojson'
 import type { Layer, PathOptions } from 'leaflet'
 import L from 'leaflet'
@@ -117,10 +117,11 @@ export default function PhiliMap({
       ]}
       maxBoundsViscosity={1.0}
       style={{ height: '100%', width: '100%' }}
-      zoomControl={true}
+      zoomControl={false}
       attributionControl={false}
     >
       <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" />
+      <ZoomControl position="bottomright" />
       {!isLoading && scores && geoData && (
         <GeoJSON
           ref={geoRef}
