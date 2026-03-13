@@ -2935,8 +2935,8 @@ body {
 }
 
 .silk-bottom-content .lpa-card {
-  background: var(--pr-surface);
-  border-color: var(--pr-border-subtle);
+  background: var(--pr-bg);
+  border: none;
   box-shadow: none;
 }
 
@@ -3641,10 +3641,10 @@ body {
 
 
 .lpa-card {
-  background: rgba(255, 255, 255, 0.88);
+  background: white;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(30, 58, 95, 0.1);
+  border: none;
   box-shadow: 0 4px 20px rgba(30, 58, 95, 0.1);
   border-radius: 12px;
   overflow: hidden;
@@ -4065,7 +4065,7 @@ body {
   flex: 1;
   min-height: 0;
   /* No backdrop needed inside sheet */
-  background: var(--pr-surface);
+  background: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   box-shadow: none;
