@@ -3,6 +3,7 @@ import { useCityDetail, useForecast, useMe, useUpdateCity } from '#/lib/queries'
 import { ForecastChart } from '#/components/forecast/ForecastChart'
 import { getDemandColor, getRiskLabel } from '#/lib/colors'
 import { SidebarSheet } from '#/components/ui/SilkSheets'
+import { useSheetState } from '#/lib/sheet-state'
 import {
   Pencil,
   Wheat, Droplets, HeartPulse, ShowerHead,
@@ -67,8 +68,8 @@ export function DetailPanel({
     simActive ? severity : undefined,
   )
   const { data: me } = useMe()
+  const { open } = useSheetState()
   const [editing, setEditing]           = useState(false)
-  const [showFormula, setShowFormula]   = useState(false)
   const [regenKey, setRegenKey]         = useState(0)
   const [pendingRegen, setPendingRegen] = useState(false)
   const [exportAiText, setExportAiText] = useState<string | null>(null)
@@ -206,14 +207,17 @@ export function DetailPanel({
       <div className="panel-demand-section">
         <div className="panel-demand-section-header">
           <p className="panel-section-label" style={{ margin: 0 }}>PEAK DEMAND ESTIMATE</p>
-          <button
-            type="button"
+          <div
             className="panel-formula-btn"
-            onClick={() => setShowFormula(true)}
+            onClick={(e) => {
+              e.stopPropagation()
+              open('formula')
+            }}
             title="View formula"
+            style={{ cursor: 'pointer' }}
           >
             <Info size={13} />
-          </button>
+          </div>
         </div>
 
         {ITEMS.map(({ key, label, unit, color, Icon }) => {
@@ -245,8 +249,6 @@ export function DetailPanel({
             </div>
           )
         })}
-
-        {showFormula && <FormulaSheet onClose={() => setShowFormula(false)} />}
       </div>
 
       {/* Forecast chart */}

@@ -7,18 +7,11 @@ interface Props {
 
 export function FormulaSheet({ onClose }: Props) {
   return (
-    <div className="panel-formula-overlay" onClick={onClose}>
-      <div className="panel-formula-sheet" onClick={e => e.stopPropagation()}>
-        <div className="panel-formula-header">
-          <span className="panel-formula-title">Relevant Information</span>
-          <button
-            type="button"
-            className="panel-formula-close"
-            onClick={onClose}
-          >
-            <XIcon size={14} />
-          </button>
-        </div>
+    <main className="simulator-page">
+        <h1 className="simulator-title">Relevant Information</h1> 
+        <p className="simulator-subtitle">
+          Detailed formulas, constants, and definitions for disaster demand calculations.
+        </p>
 
         <div className="panel-formula-body">
           <p className="panel-formula-section">Core formula</p>
@@ -131,7 +124,6 @@ export function FormulaSheet({ onClose }: Props) {
             Source: forecast_service.py, demand_service.py, cities.py
           </p>
         </div>
-      </div>
-    </div>
+    </main>
   )
 }

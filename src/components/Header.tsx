@@ -3,7 +3,6 @@ import { useNavigate } from '@tanstack/react-router'
 import { useMe } from '#/lib/queries'
 import { clearToken, getToken } from '#/lib/auth'
 import { useSheetState } from '#/lib/sheet-state'
-import type { SheetName } from '#/lib/sheet-state'
 import {
   FlaskConical,
   Shield,
@@ -107,7 +106,7 @@ function NavLinks({
   token: boolean
   isMobile?: boolean
   onLogout: () => void
-  onOpenSheet: (name: SheetName) => void
+  onOpenSheet: (name: string) => void
   onNavigate: (modal: string) => void
 }) {
   return (

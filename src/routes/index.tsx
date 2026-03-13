@@ -2,9 +2,10 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState, useRef } from 'react'
 import { MapWrapper } from '../components/map/MapWrapper'
 import { DetailPanel } from '../components/map/DetailPanel'
+import { FormulaSheet } from '../components/map/FormulaSheet'
 import { WeatherStrip } from '../components/weather/WeatherStrip'
 import { useSheetState } from '#/lib/sheet-state'
-import { DialogSheet, ScrollableSheet, BottomSheet } from '#/components/ui/SilkSheets'
+import { DialogSheet, ScrollableSheet, BottomSheet, PageSheet } from '#/components/ui/SilkSheets'
 import { SimulateContent } from '#/components/simulator/SimulateContent'
 import { SimulatorContent } from '#/components/simulator/SimulatorContent'
 import { LoginContent } from '#/components/auth/LoginContent'
@@ -127,9 +128,11 @@ function Dashboard() {
         <SimulateContent onActivate={handleSimActivate} />
       </ScrollableSheet>
 
-      <BottomSheet presented={openSheet === 'assistant'} onClose={close}>
-        <ChatBot context={{ simActive, hazard: simHazard, severity: simSeverity, selectedCity: selectedCity?.name }} />
-      </BottomSheet>
+      <PageSheet presented={openSheet === 'assistant'} onClose={close} swipeDismissal={false}>
+        <div className="assistant-page">
+          <ChatBot context={{ simActive, hazard: simHazard, severity: simSeverity, selectedCity: selectedCity?.name }} />
+        </div>
+      </PageSheet>
 
       {/* What-If Forecaster — tall scrollable sheet, URL-intercepted */}
       <ScrollableSheet
@@ -161,6 +164,13 @@ function Dashboard() {
         tall
       >
         <PricesContent />
+      </ScrollableSheet>
+
+      {/* Formula Sheet — scrollable sheet */}
+      <ScrollableSheet presented={openSheet === 'formula'} onClose={close}>
+        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+          <FormulaSheet onClose={close} />
+        </div>
       </ScrollableSheet>
 
       <Footer />

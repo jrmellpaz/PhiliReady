@@ -58,7 +58,7 @@ export function ExportButton({
   forecast,
   cachedAiText,
   label = 'Export PDF Report',
-  className = '',
+  className = 'export-btn-wrap',
 }: ExportButtonProps) {
   const [stage, setStage] = useState<Stage>('idle')
   const [errMsg, setErrMsg] = useState<string | null>(null)
@@ -89,10 +89,10 @@ export function ExportButton({
     label
 
   return (
-    <div className={`export-btn-wrap ${className}`}>
+    <div className={`${className}`}>
       <button
         type="button"
-        className={`export-btn ${stage === 'error' ? 'export-btn--error' : ''}`}
+        className={`simulate-activate-btn ${stage === 'error' ? 'export-btn--error' : ''}`}
         onClick={handleExport}
         disabled={busy}
       >
