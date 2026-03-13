@@ -100,23 +100,24 @@ export function FormulaSheet({ onClose }: Props) {
             </div>
           </div>
 
-          <p className="panel-formula-section">Acronyms &amp; terms</p>
+          <p className="panel-formula-section">Definition of Terms</p>
           <div className="panel-formula-glossary">
             {([
+              ['Demand', 'The quantity of a relief goods needed to meet the essential needs of affected populations. Calculated based on Sphere standards and adjusted for local context.'],
+              ['DOH', 'Department of Health — reference for medicine kit costing'],
+              ['DSWD', 'Department of Social Welfare and Development — reference for hygiene kit procurement costs'],
+              ['DRRMO', 'Disaster Risk Reduction and Management Office — city/municipality-level disaster response agencies'],
               ['HH', 'Household — the primary unit for demand calculations'],
-              ['SPHERE', 'Sphere Humanitarian Standards — international minimum standards for humanitarian response (4th ed. 2018)'],
+              ['LGU', 'Local Government Unit — cities/municipalities/provinces responsible for disaster response on the ground'],
               ['NDRRMC', 'National Disaster Risk Reduction and Management Council — source of historical Philippine displacement data'],
-              ['PSA', 'Philippine Statistics Authority — source of census and poverty data'],
               ['PAGASA', 'Philippine Atmospheric, Geophysical and Astronomical Services Administration — source of seasonal multipliers'],
               ['PHIVOLCS', 'Philippine Institute of Volcanology and Seismology — source of earthquake/volcanic zone classifications'],
-              ['MGB', 'Mines and Geosciences Bureau — source of flood hazard zone maps'],
-              ['DSWD', 'Department of Social Welfare and Development — reference for hygiene kit procurement costs'],
-              ['DOH', 'Department of Health — reference for medicine kit costing'],
+              ['PSA', 'Philippine Statistics Authority — source of census and poverty data'],
+              ['PSGC', 'Philippine Standard Geographic Code — canonical city/municipality identifiers'],
+              ['Risk', 'The potential for loss or harm to people and assets in areas, based on a composite of factors including population, poverty, coastal exposure, and historical hazard impact.'],
+              ['SPHERE', 'Sphere Humanitarian Standards — international minimum standards for humanitarian response (4th ed. 2018)'],
               ['WASH', 'Water, Sanitation, and Hygiene — Sphere WASH standards define hygiene kit allocation'],
               ['WHO', 'World Health Organization — source for Emergency Health Kit guidelines'],
-              ['PSGC', 'Philippine Standard Geographic Code — canonical city/municipality identifiers'],
-              ['LGU', 'Local Government Unit — cities/municipalities/provinces responsible for disaster response on the ground'],
-            //   ['OTC', 'Over-the-Counter — medications included in basic medicine kits'],
             ] as [string, string][]).map(([term, def]) => (
               <div key={term} className="panel-formula-glossary-item">
                 <span className="panel-formula-glossary-term">{term}</span>

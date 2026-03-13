@@ -1,6 +1,6 @@
 // AiAssessment.tsx
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, ChevronUp, RefreshCw } from 'lucide-react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import type { ExplainInput } from '#/lib/ai-explain'
 
 const API_BASE =
@@ -91,8 +91,6 @@ export function AiAssessment({ explainInput, onTextReady, regenKey = 0 }: Props)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [regenKey])
 
-  const handleRegenerate = () => runCompletion(true)
-
   return (
     <div className="panel-ai-section">
       <div className="panel-ai-header">
@@ -110,9 +108,6 @@ export function AiAssessment({ explainInput, onTextReady, regenKey = 0 }: Props)
         <div className="panel-ai-header-actions">
           {completion && status !== 'loading' && (
             <>
-              <button type="button" className="panel-ai-icon-btn" onClick={handleRegenerate} title="Regenerate">
-                <RefreshCw size={12} />
-              </button>
               <button type="button" className="panel-ai-icon-btn" onClick={() => setExpanded(v => !v)} title={expanded ? 'Collapse' : 'Expand'}>
                 {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
               </button>
@@ -138,9 +133,6 @@ export function AiAssessment({ explainInput, onTextReady, regenKey = 0 }: Props)
       {status === 'error' && (
         <div className="panel-ai-error">
           <p>{error}</p>
-          <button type="button" className="panel-ai-retry-btn" onClick={handleRegenerate}>
-            Retry
-          </button>
         </div>
       )}
 
