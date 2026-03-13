@@ -1,204 +1,271 @@
-Welcome to your new TanStack Start app! 
+# PhiliReady
 
-# Getting Started
+A comprehensive disaster preparedness and response planning platform for the Philippines, providing real-time demand forecasting and resource allocation for humanitarian relief operations.
 
-To run this application:
+## Overview
 
+PhiliReady is a web-based application that helps disaster response teams and local government units (LGUs) plan and execute effective humanitarian aid distribution during natural disasters. The platform combines geospatial data, demographic information, and humanitarian standards to provide accurate demand forecasts for essential relief goods.
+
+### Key Features
+
+- **Interactive Map Interface**: Philippine municipality-level visualization with demand heatmaps
+- **Disaster Simulation**: What-if scenario modeling for typhoons, floods, earthquakes, and volcanic eruptions
+- **Demand Forecasting**: 7-day projections for rice, water, medical kits, and hygiene kits
+- **AI-Powered Assessment**: Intelligent analysis and recommendations for response planning
+- **Weather Integration**: Real-time weather data for operational awareness
+- **Administrative Tools**: User management, price configuration, and data administration
+- **Export Capabilities**: PDF reports and data export functionality
+
+## Technology Stack
+
+- **Frontend**: React 19, TypeScript, TanStack Router, Tailwind CSS
+- **Mapping**: Leaflet with React-Leaflet
+- **Charts**: Recharts
+- **UI Components**: Radix UI, Lucide Icons
+- **Build Tool**: Vite
+- **Backend**: Python/FastAPI (assumed from context)
+- **Database**: PostgreSQL (assumed from context)
+
+## Installation & Setup
+
+### Prerequisites
+
+- Node.js 18+
+- npm or pnpm
+- Backend API server (see backend documentation)
+
+### Installation
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd PhiliReady
+```
+
+2. Install dependencies:
 ```bash
 npm install
+```
+
+3. Configure environment variables:
+Create a `.env` file with:
+```env
+VITE_API_BASE_URL=http://localhost:8000/api/v1
+```
+
+4. Start the development server:
+```bash
 npm run dev
 ```
 
-# Building For Production
+The application will be available at `http://localhost:3000`.
 
-To build this application for production:
+### Build for Production
 
 ```bash
 npm run build
 ```
 
-## Testing
-
-This project uses [Vitest](https://vitest.dev/) for testing. You can run the tests with:
+### Testing
 
 ```bash
 npm run test
 ```
 
-## Styling
-
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
-
-### Removing Tailwind CSS
-
-If you prefer not to use Tailwind CSS:
-
-1. Remove the demo pages in `src/routes/demo/`
-2. Replace the Tailwind import in `src/styles.css` with your own styles
-3. Remove `tailwindcss()` from the plugins array in `vite.config.ts`
-4. Uninstall the packages: `npm install @tailwindcss/vite tailwindcss -D`
-
-## Linting & Formatting
-
-
-This project uses [eslint](https://eslint.org/) and [prettier](https://prettier.io/) for linting and formatting. Eslint is configured using [tanstack/eslint-config](https://tanstack.com/config/latest/docs/eslint). The following scripts are available:
+### Code Quality
 
 ```bash
-npm run lint
-npm run format
-npm run check
+npm run lint    # ESLint
+npm run format  # Prettier
+npm run check   # Format and lint
 ```
 
+## Data Sources & Methodology
 
+### Geographic Data
+- **PSGC**: Philippine Standard Geographic Code for municipality identification
+- **Municipality Boundaries**: GeoJSON data processed via `scripts/merge-geojson.cjs`
 
-## Routing
+### Demographic Data
+- **Population & Households**: Philippine Statistics Authority (PSA) 2020 Census
+- **Poverty Rates**: PSA poverty incidence data
+- **Household Size**: National average of 4.1 persons per household
 
-This project uses [TanStack Router](https://tanstack.com/router) with file-based routing. Routes are managed as files in `src/routes`.
+### Hazard Data
+- **Flood Zones**: Local DRRMO classifications (Low/Medium/High)
+- **Earthquake Zones**: PHIVOLCS seismic hazard maps
+- **Coastal Classification**: Based on proximity to coastlines
+- **Volcanic Zones**: PHIVOLCS volcanic hazard maps
 
-### Adding A Route
+### Standards & References
+- **SPHERE Standards**: Humanitarian minimum standards (4th ed. 2018)
+- **WHO Guidelines**: Emergency Health Kit specifications
+- **NDRRMC Data**: Historical displacement patterns
+- **PAGASA**: Seasonal weather multipliers
 
-To add a new route to your application just add a new file in the `./src/routes` directory.
+## Demand Calculation Formulas
 
-TanStack will automatically generate the content of the route file for you.
+### Core Displacement Formula
 
-Now that you have two routes you can use a `Link` component to navigate between them.
+```
+displacement_rate = min(
+    BASE_DISPLACEMENT[severity]
+    × ZONE_MODIFIER[hazard_zone]
+    × coastal_modifier
+    × (1.0 + poverty_pct^0.7 × 1.2)
+    × SEASONAL_MULTIPLIER[month],
+    0.85  ← cap
+)
 
-### Adding Links
+displaced_HH = households × displacement_rate
 
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
+hh_size_factor = (population / households) / 4.1
 
-```tsx
-import { Link } from "@tanstack/react-router";
+base_demand = displaced_HH × SPHERE_RATE × hh_size_factor
+
+daily_demand = base_demand × CURVE[hazard][day]
 ```
 
-Then anywhere in your JSX you can use it like so:
+### Key Constants
 
-```tsx
-<Link to="/about">About</Link>
+| Parameter | Values |
+|-----------|--------|
+| Severity Levels | 1→10%, 2→20%, 3→35%, 4→55% |
+| Zone Modifiers | Low: 0.7, Medium: 1.0, High: 1.3 |
+| Coastal Modifier | ×1.2 (typhoon/flood only) |
+| National HH Size | 4.1 (PSA 2020 Census) |
+| Confidence Band | ±20% of daily demand |
+
+### SPHERE Standard Rates
+
+| Item | Rate | Basis |
+|------|------|-------|
+| **Rice** | 1.5 kg/displaced HH/day | 2,100 kcal/person/day (~500g rice × 3 persons needing aid per HH) |
+| **Water** | 15 L/displaced HH/day | Minimum for drinking, cooking, and hygiene |
+| **Medical Kits** | 0.08 kits/displaced HH/day | ~1 kit per 12 HH/day (WHO Emergency Health Kit) |
+| **Hygiene Kits** | 0.07 kits/displaced HH/day | ~1 kit per 14 HH/day (Sphere WASH standards) |
+
+### Risk Score Calculation
+
+The baseline risk score is a composite metric:
+- Population: 25%
+- Poverty Rate: 20%
+- Coastal Exposure: 15%
+- Flood Zone: 20%
+- Earthquake Zone: 20%
+
+Clamped to range [0.05, 0.99].
+
+## Application Architecture
+
+### Frontend Structure
+
+```
+src/
+├── components/
+│   ├── map/           # Map visualization and controls
+│   ├── forecast/      # Demand forecasting charts
+│   ├── weather/       # Weather data display
+│   ├── simulator/     # Disaster simulation interface
+│   ├── auth/          # Authentication components
+│   ├── chat/          # AI assistant chatbot
+│   ├── export/        # PDF export functionality
+│   └── ui/            # Reusable UI components
+├── lib/
+│   ├── api.ts         # API client and types
+│   ├── queries.ts     # TanStack Query hooks
+│   ├── types.ts       # TypeScript type definitions
+│   ├── colors.ts      # Color schemes and utilities
+│   └── ai-explain.ts  # AI assessment types
+├── routes/            # TanStack Router route definitions
+└── styles.css         # Global styles and Tailwind imports
 ```
 
-This will create a link that will navigate to the `/about` route.
+### Key Components
 
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
+- **MapWrapper**: Main map interface with Leaflet integration
+- **DetailPanel**: City information sidebar with demand details
+- **ForecastChart**: Time-series visualization of demand forecasts
+- **SimulateContent**: Disaster scenario configuration
+- **AiAssessment**: AI-powered analysis and recommendations
+- **WeatherStrip**: Real-time weather information display
 
-### Using A Layout
+### API Endpoints
 
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you render `{children}` in the `shellComponent`.
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/map/demand-heat` | GET | Demand heatmap data |
+| `/cities/{pcode}` | GET | City demographic details |
+| `/forecast/{pcode}` | GET | 7-day demand forecast |
+| `/auth/login` | POST | User authentication |
+| `/auth/me` | GET | Current user profile |
+| `/admin/users` | GET | User management (admin) |
+| `/prices` | GET | Relief goods pricing |
+| `/api/v1/explain` | POST | AI assessment generation |
 
-Here is an example layout that includes a header:
+## Usage Guide
 
-```tsx
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
+### Basic Operation
 
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'My App' },
-    ],
-  }),
-  shellComponent: ({ children }) => (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <header>
-          <nav>
-            <Link to="/">Home</Link>
-            <Link to="/about">About</Link>
-          </nav>
-        </header>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  ),
-})
-```
+1. **View Baseline Risk**: The default map shows composite risk scores for all municipalities
+2. **Select a City**: Click on any municipality to view detailed information
+3. **Run Simulation**: Use the "Simulate" panel to model disaster scenarios
+4. **Review Forecasts**: Examine 7-day demand projections and cost estimates
+5. **Export Reports**: Generate PDF reports for planning and coordination
 
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
+### Simulation Mode
 
-## Server Functions
+- Select hazard type (typhoon, flood, earthquake, volcanic)
+- Choose severity level (1-4)
+- View updated demand heatmaps and forecasts
+- Access AI assessment for strategic recommendations
 
-TanStack Start provides server functions that allow you to write server-side code that seamlessly integrates with your client components.
+### Administrative Features
 
-```tsx
-import { createServerFn } from '@tanstack/react-start'
+- **User Management**: Add/edit users and assign municipality access
+- **Price Configuration**: Update costs for relief goods
+- **Data Administration**: Modify city data and risk parameters
 
-const getServerTime = createServerFn({
-  method: 'GET',
-}).handler(async () => {
-  return new Date().toISOString()
-})
+## Development
 
-// Use in a component
-function MyComponent() {
-  const [time, setTime] = useState('')
-  
-  useEffect(() => {
-    getServerTime().then(setTime)
-  }, [])
-  
-  return <div>Server time: {time}</div>
-}
-```
+### Project Structure
 
-## API Routes
+The application follows a modular architecture with clear separation of concerns:
 
-You can create API routes by using the `server` property in your route definitions:
+- **Components**: Reusable UI components with single responsibilities
+- **Hooks**: Custom React hooks for data fetching and state management
+- **Types**: Comprehensive TypeScript definitions
+- **API Layer**: Centralized API client with error handling
+- **Routing**: File-based routing with TanStack Router
 
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { json } from '@tanstack/react-start'
+### Code Quality
 
-export const Route = createFileRoute('/api/hello')({
-  server: {
-    handlers: {
-      GET: () => json({ message: 'Hello, World!' }),
-    },
-  },
-})
-```
+- **TypeScript**: Strict type checking enabled
+- **ESLint**: Code linting with TanStack configuration
+- **Prettier**: Automated code formatting
+- **Vitest**: Unit testing framework
+- **Tailwind CSS**: Utility-first styling approach
 
-## Data Fetching
+### Scripts
 
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start development server |
+| `npm run build` | Production build |
+| `npm run preview` | Preview production build |
+| `npm run test` | Run test suite |
+| `npm run lint` | Run ESLint |
+| `npm run format` | Run Prettier |
+| `npm run check` | Format and lint |
 
-For example:
+## Acknowledgments
 
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
+- Philippine Statistics Authority (PSA) for demographic data
+- Department of Social Welfare and Development (DSWD) for relief standards
+- Philippine Institute of Volcanology and Seismology (PHIVOLCS) for hazard data
+- Philippine Atmospheric, Geophysical and Astronomical Services Administration (PAGASA) for weather data
+- SPHERE Project for humanitarian standards
+- World Health Organization (WHO) for health guidelines
+---
 
-export const Route = createFileRoute('/people')({
-  loader: async () => {
-    const response = await fetch('https://swapi.dev/api/people')
-    return response.json()
-  },
-  component: PeopleComponent,
-})
-
-function PeopleComponent() {
-  const data = Route.useLoaderData()
-  return (
-    <ul>
-      {data.results.map((person) => (
-        <li key={person.name}>{person.name}</li>
-      ))}
-    </ul>
-  )
-}
-```
-
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
-
-# Demo files
-
-Files prefixed with `demo` can be safely deleted. They are there to provide a starting point for you to play around with the features you've installed.
-
-# Learn More
-
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
-
-For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+*Built with ❤️ for Philippine disaster resilience*
