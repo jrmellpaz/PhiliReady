@@ -18,7 +18,7 @@ PhiliReady is a web-based application that helps disaster response teams and loc
 
 ## Technology Stack
 
-- **Frontend**: React 19, TypeScript, TanStack Router, Tailwind CSS
+- **Frontend**: TanStack Start - React 19, TypeScript, ESLint, TanStack Router, Tailwind CSS
 - **Mapping**: Leaflet with React-Leaflet
 - **Charts**: Recharts
 - **UI Components**: Radix UI, Lucide Icons
